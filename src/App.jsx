@@ -24,8 +24,10 @@ function App() {
   const [accentColor, setAccentColor] = useState('cyan');
 
   const [flights, setFlights] = useState([]);
+  const [trips, setTrips] = useState([]);
   const [selectedFlight, setSelectedFlight] = useState(null);
   const [editingFlight, setEditingFlight] = useState(null);
+  const [editingTrip, setEditingTrip] = useState(null);
 
   const [user, setUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
@@ -48,17 +50,19 @@ function App() {
       return acc + calculateDistance(flight.depLat, flight.depLng, flight.arrLat, flight.arrLng);
     }, 0);
 
-    const totalCost = flights.reduce((acc, flight) => {
-      return acc + (parseFloat(flight.cost) || 0);
-    }, 0);
+    // Cost logic: Sum of all Trips + Sum of "Orphan" flights (no tripId)
+    const tripsCost = trips.reduce((acc, trip) => acc + (parseFloat(trip.cost) || 0), 0);
+    const orphanFlightsCost = flights
+      .filter(f => !f.tripId)
+      .reduce((acc, flight) => acc + (parseFloat(flight.cost) || 0), 0);
 
     return {
       count: flights.length,
       distance: totalDist,
       hours: Math.round(totalDist / 740),
-      totalCost
+      totalCost: tripsCost + orphanFlightsCost
     };
-  }, [flights]);
+  }, [flights, trips]);
 
   // AUTH LISTENER
   useEffect(() => {
@@ -74,35 +78,56 @@ function App() {
   useEffect(() => {
     if (!user) {
       setFlights([]);
+      setTrips([]);
       return;
     }
 
     console.log("Setting up Firestore watcher for:", user.uid);
-    // Filter by userId
-    const q = query(
+
+    // 1. Watch FLIGHTS
+    const qFlights = query(
       collection(db, "test"),
       where("userId", "==", user.uid),
       orderBy("date", "desc")
     );
 
-    const unsubscribeData = onSnapshot(q, (snapshot) => {
-      console.log("Firestore Snapshot received. Docs:", snapshot.docs.length);
+    const unsubFlights = onSnapshot(qFlights, (snapshot) => {
+      console.log("Flights Snapshot received. Docs:", snapshot.docs.length);
       const flightData = snapshot.docs.map(doc => ({
         ...doc.data(),
         id: doc.id
       }));
       setFlights(flightData);
     }, (error) => {
-      console.error("Firestore Error:", error);
-      // Helpful alert for missing index (common when adding composite queries)
+      console.error("Firestore Flights Error:", error);
       if (error.message.includes("indexes")) {
-        alert("Database Error: Index required. Check console for link to create it.");
-      } else {
-        alert("Database Error: " + error.message);
+        alert("Database Error (Flights): Index required. Check console.");
       }
     });
 
-    return () => unsubscribeData();
+    // 2. Watch TRIPS
+    const qTrips = query(
+      collection(db, "trips"),
+      where("userId", "==", user.uid)
+      // orderBy("startDate", "desc") // keeping simple for now to avoid multiple index requirements at once
+    );
+
+    const unsubTrips = onSnapshot(qTrips, (snapshot) => {
+      console.log("Trips Snapshot received. Docs:", snapshot.docs.length);
+      const tripData = snapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id
+      }));
+      // Optional: Sort manually if not using database index yet
+      setTrips(tripData.sort((a, b) => new Date(b.startDate || 0) - new Date(a.startDate || 0)));
+    }, (error) => {
+      console.error("Firestore Trips Error:", error);
+    });
+
+    return () => {
+      unsubFlights();
+      unsubTrips();
+    };
   }, [user]);
 
   // LOADING STATE
@@ -111,27 +136,50 @@ function App() {
   // LOGIN SCREEN
   if (!user) return <Login />;
 
-  const handleSaveFlight = async (flight) => {
+  // Updated to handle Trip object which contains flights
+  const handleSaveTrip = async (tripData, flightDataList) => {
     if (!user) return;
 
     try {
-      const flightRef = doc(db, "test", flight.id); // Use flight.id as Doc ID
+      // 1. Save Trip Doc
+      const tripRef = doc(db, "trips", tripData.id);
+      await setDoc(tripRef, { ...tripData, userId: user.uid });
 
-      // Ensure flight has userId
-      const flightData = {
-        ...flight,
-        userId: user.uid
-      };
+      // 2. Sync Flights
 
-      await setDoc(flightRef, flightData); // Merges or Create
+      // Identify flights to delete (exist in DB but not in current submission)
+      // Note: 'flights' state is available in this scope
+      const currentTripFlights = flights.filter(f => f.tripId === tripData.id);
+      const newFlightIds = new Set(flightDataList.map(f => f.id));
+
+      const flightsToDelete = currentTripFlights.filter(f => !newFlightIds.has(f.id));
+
+      const deletePromises = flightsToDelete.map(f => deleteDoc(doc(db, "test", f.id)));
+
+      // Ensure unique by ID
+      const distinctFlightDataList = flightDataList.filter((v, i, a) => a.findIndex(v2 => (v2.id === v.id)) === i);
+
+      const savePromises = distinctFlightDataList.map(flight => {
+        const flightRef = doc(db, "test", flight.id);
+        return setDoc(flightRef, { ...flight, userId: user.uid, tripId: tripData.id });
+      });
+
+      await Promise.all([...deletePromises, ...savePromises]);
+
     } catch (e) {
-      console.error("Error saving flight:", e);
+      console.error("Error saving trip:", e);
       alert("Error saving: " + e.message);
     }
 
     setEditingFlight(null);
+    setEditingTrip(null);
     setShowForm(false);
   };
+
+  // Backwards compatible info: passing (flight) implies single flight "orphan" save
+  // But our new UI will primarily focus on Trips. 
+  // If FlightForm is reused for single flight, we wrap it in a pseudo-trip or handle it directly.
+  // We'll update this shortly.
 
   const handleDeleteFlight = async (id) => {
     if (!user) return;
@@ -144,8 +192,40 @@ function App() {
     }
   };
 
+  const handleDeleteTrip = async (tripId) => {
+    if (!user) return;
+    if (confirm("Delete this entire trip and all its flights?")) {
+      // 1. Delete Trip Doc
+      await deleteDoc(doc(db, "trips", tripId));
+
+      // 2. Delete all flights with this tripId
+      // Needed: find all flights with tripId. We have them in state 'flights'.
+      const flightsToDelete = flights.filter(f => f.tripId === tripId);
+      flightsToDelete.forEach(async (f) => {
+        await deleteDoc(doc(db, "test", f.id));
+      });
+    }
+  };
+
   const handleEditFlight = (flight) => {
+    // If flight has a tripId, we should edit the TRIP, not just the flight.
+    if (flight.tripId) {
+      const parentTrip = trips.find(t => t.id === flight.tripId);
+      if (parentTrip) {
+        handleEditTrip(parentTrip);
+        return;
+      }
+    }
+    // Orphan flight
     setEditingFlight(flight);
+    setEditingTrip(null);
+    setShowForm(true);
+    setShowList(false);
+  };
+
+  const handleEditTrip = (trip) => {
+    setEditingTrip(trip);
+    setEditingFlight(null);
     setShowForm(true);
     setShowList(false);
   };
@@ -290,8 +370,10 @@ function App() {
           <div className="w-full max-w-2xl h-full max-h-[85vh] pointer-events-auto">
             <FlightList
               flights={flights}
+              trips={trips}
               onClose={() => setShowList(false)}
               onDelete={handleDeleteFlight}
+              onDeleteTrip={handleDeleteTrip}
               onEdit={handleEditFlight}
             />
           </div>
@@ -302,9 +384,11 @@ function App() {
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in zoom-in-95 duration-200">
           <div className="pointer-events-auto w-full max-w-2xl">
             <FlightForm
+              initialTrip={editingTrip}
               initialData={editingFlight}
+              existingFlights={flights}
               onClose={handleCloseForm}
-              onSubmit={handleSaveFlight}
+              onSubmit={handleSaveTrip}
             />
           </div>
         </div>
@@ -365,4 +449,3 @@ function App() {
 }
 
 export default App;
-

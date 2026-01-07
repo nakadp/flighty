@@ -1,202 +1,341 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plane, Search } from 'lucide-react';
+import { X, Plane, Plus, Trash2, Edit2, ChevronRight, Calendar, DollarSign } from 'lucide-react';
 import { AIRPORTS } from '../data/airports';
 import { useLanguage } from '../context/LanguageContext';
 
-export default function FlightForm({ onClose, onSubmit, initialData = null }) {
+export default function FlightForm({ onClose, onSubmit, initialTrip = null, initialData = null, existingFlights = [] }) {
     const { t, language } = useLanguage();
-    const [formData, setFormData] = useState({
-        depCode: '', depName: '', depLat: '', depLng: '', depCountry: '',
-        arrCode: '', arrName: '', arrLat: '', arrLng: '', arrCountry: '',
-        airline: '', flightNumber: '', aircraft: '',
-        date: '', notes: '', cost: ''
+
+    // Mode: 'TRIP' (Overview) or 'FLIGHT' (Editing a specific segment)
+    const [view, setView] = useState('TRIP');
+
+    // Trip Meta Data
+    const [tripData, setTripData] = useState({
+        id: crypto.randomUUID(),
+        name: '',
+        type: 'OneWay', // OneWay, RoundTrip, MultiCity
+        cost: '',
+        startDate: '',
+        endDate: '',
+        userId: ''
     });
 
-    // Load initial data if editing
-    useEffect(() => {
-        if (initialData) {
-            setFormData(prev => ({
-                ...prev, // Keep defaults for new fields if old data doesn't have them
-                ...initialData
-            }));
-        }
-    }, [initialData]);
+    // List of flights in this trip
+    const [segments, setSegments] = useState([]);
 
-    // Auto-fill logic
+    // Currently editing segment
+    const [editingSegmentId, setEditingSegmentId] = useState(null);
+    const [segmentForm, setSegmentForm] = useState(getEmptyFlight());
+
+    // --- INITIALIZATION ---
+    useEffect(() => {
+        if (initialTrip) {
+            // Edit Existing Trip
+            setTripData(initialTrip);
+            // Find flights belonging to this trip
+            const tripFlights = existingFlights.filter(f => f.tripId === initialTrip.id);
+            setSegments(tripFlights);
+        } else if (initialData) {
+            // Edit Orphan Flight (Wrap in pseudo-trip or handle as single)
+            // For now, let's treat it as a "Trip" with one flight, or just Pre-fill
+            // Only if it's an orphan flight.
+            setSegments([initialData]);
+            setTripData({
+                id: crypto.randomUUID(),
+                name: `${initialData.depCode} to ${initialData.arrCode}`,
+                type: 'OneWay',
+                cost: '', // Orphan flights usually have their own cost, trip cost might be 0 or sum
+                startDate: initialData.date,
+                endDate: initialData.date
+            });
+        }
+    }, [initialTrip, initialData]);
+
+
+    function getEmptyFlight() {
+        return {
+            id: crypto.randomUUID(),
+            depCode: '', depName: '', depLat: '', depLng: '', depCountry: '',
+            arrCode: '', arrName: '', arrLat: '', arrLng: '', arrCountry: '',
+            airline: '', flightNumber: '', aircraft: '',
+            date: '', notes: '', cost: '0' // Individual flight cost (optional if trip usage)
+        };
+    }
+
+    // --- TRIP HANDLERS ---
+    const handleTripChange = (e) => {
+        setTripData({ ...tripData, [e.target.name]: e.target.value });
+    };
+
+    const handleSaveTrip = (e) => {
+        e.preventDefault();
+        // Calculate dates if missing
+        let finalTrip = { ...tripData };
+
+        // Auto-set dates from segments if not manually set
+        if (segments.length > 0) {
+            const sortedDates = segments.map(s => s.date).sort();
+            if (!finalTrip.startDate) finalTrip.startDate = sortedDates[0];
+            if (!finalTrip.endDate) finalTrip.endDate = sortedDates[sortedDates.length - 1];
+        }
+
+        // If no name, generate one
+        if (!finalTrip.name && segments.length > 0) {
+            finalTrip.name = `${segments[0].depCode} ✈ ${segments[segments.length - 1].arrCode}`;
+        }
+
+        onSubmit(finalTrip, segments);
+    };
+
+    // --- SEGMENT HANDLERS ---
+    const startAddSegment = () => {
+        setSegmentForm(getEmptyFlight());
+        setEditingSegmentId(null);
+        setView('FLIGHT');
+    };
+
+    const startEditSegment = (segment) => {
+        setSegmentForm(segment);
+        setEditingSegmentId(segment.id);
+        setView('FLIGHT');
+    };
+
+    const deleteSegment = (id) => {
+        setSegments(prev => prev.filter(s => s.id !== id));
+    };
+
+    const saveSegment = (e) => {
+        e.preventDefault();
+
+        // If editing existing
+        if (editingSegmentId) {
+            setSegments(prev => prev.map(s => s.id === editingSegmentId ? segmentForm : s));
+        } else {
+            // Adding new
+            setSegments(prev => [...prev, segmentForm]);
+        }
+
+        setView('TRIP');
+    };
+
+    // --- FLIGHT FORM HANDLERS (Reused) ---
     const handleCodeChange = (e, type) => {
         const code = e.target.value.toUpperCase();
-        setFormData(prev => ({ ...prev, [e.target.name]: code }));
+        setSegmentForm(prev => ({ ...prev, [e.target.name]: code }));
 
         if (code.length === 3) {
             const airport = AIRPORTS.find(a => a.iata === code);
             if (airport) {
                 if (type === 'dep') {
-                    setFormData(prev => ({
-                        ...prev,
-                        depCode: airport.iata,
-                        depName: airport.name,
-                        depLat: airport.lat,
-                        depLng: airport.lng,
-                        depCountry: airport.country || ''
+                    setSegmentForm(prev => ({
+                        ...prev, depCode: airport.iata, depName: airport.name, depLat: airport.lat, depLng: airport.lng, depCountry: airport.country || ''
                     }));
                 } else {
-                    setFormData(prev => ({
-                        ...prev,
-                        arrCode: airport.iata,
-                        arrName: airport.name,
-                        arrLat: airport.lat,
-                        arrLng: airport.lng,
-                        arrCountry: airport.country || ''
+                    setSegmentForm(prev => ({
+                        ...prev, arrCode: airport.iata, arrName: airport.name, arrLat: airport.lat, arrLng: airport.lng, arrCountry: airport.country || ''
                     }));
                 }
             }
         }
     };
 
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+    const handleSegmentChange = (e) => {
+        setSegmentForm({ ...segmentForm, [e.target.name]: e.target.value });
     };
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        const flight = {
-            ...formData,
-            // Preserve ID if editing, else new UUID
-            id: initialData ? initialData.id : crypto.randomUUID(),
-            depLat: parseFloat(formData.depLat),
-            depLng: parseFloat(formData.depLng),
-            arrLat: parseFloat(formData.arrLat),
-            arrLng: parseFloat(formData.arrLng),
-        };
-        onSubmit(flight);
-    };
 
+    // --- RENDER ---
     return (
-        <div className="glass-panel rounded-2xl w-[95%] md:w-full md:max-w-2xl shadow-2xl flex flex-col max-h-[90vh] md:max-h-[85vh] animate-in fade-in zoom-in duration-200 border border-white/10 bg-black/80 backdrop-blur-xl">
-            {/* Header */}
+        <div className="glass-panel rounded-2xl w-[95%] md:w-full md:max-w-2xl shadow-2xl flex flex-col max-h-[90vh] md:max-h-[85vh] animate-in fade-in zoom-in duration-200 border border-white/10 bg-black/80 backdrop-blur-xl transition-all">
+
+            {/* HEADER */}
             <div className="p-5 border-b border-white/10 flex justify-between items-center bg-white/5">
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                    <Plane className="text-cyan-400" size={20} />
-                    {initialData ? t('edit_flight') : t('log_new_flight')}
+                    {view === 'TRIP' ? (
+                        <>
+                            <Plane className="text-cyan-400" size={20} />
+                            {initialTrip ? 'Edit Trip' : 'Create New Trip'}
+                        </>
+                    ) : (
+                        <>
+                            <button onClick={() => setView('TRIP')} className="hover:text-cyan-400 flex items-center gap-1 text-slate-400 text-sm mr-2 transition-colors">
+                                <ChevronRight className="rotate-180" size={16} /> Back
+                            </button>
+                            <span>{editingSegmentId ? 'Edit Flight' : 'Add Flight Segment'}</span>
+                        </>
+                    )}
                 </h2>
                 <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
                     <X size={20} />
                 </button>
             </div>
 
-            {/* Scrollable Form Body */}
-            <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
-                <form id="flight-form" onSubmit={handleSubmit} className="space-y-8">
+            {/* BODY */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 relative">
 
-                    {/* Flight Info Section */}
-                    <div className="space-y-4">
-                        <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                            {t('basic_info')} <span className="h-px bg-white/10 flex-1"></span>
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <Input label={t('airline') + " (Optional)"} name="airline" value={formData.airline} onChange={handleChange} placeholder="Delta" />
-                            <Input label={t('flight_number')} name="flightNumber" value={formData.flightNumber} onChange={handleChange} placeholder="DL123" />
-                            <Input label={t('aircraft')} name="aircraft" value={formData.aircraft} onChange={handleChange} placeholder="A350-900" />
-                            <Input label={t('cost') || "Cost"} name="cost" type="number" value={formData.cost} onChange={handleChange} placeholder="0.00" />
-                        </div>
-                    </div>
-
-                    {/* Departure Section */}
-                    <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                            <h3 className="text-cyan-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2 w-full">
-                                {t('departure')} <span className="h-px bg-cyan-900/50 flex-1"></span>
+                {/* VIEW: TRIP OVERVIEW */}
+                {view === 'TRIP' && (
+                    <div className="space-y-8">
+                        {/* Trip Details */}
+                        <div className="space-y-4">
+                            <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                                Trip Details <span className="h-px bg-white/10 flex-1"></span>
                             </h3>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                            <div className="md:col-span-3">
-                                <Input
-                                    label={t('code')}
-                                    name="depCode"
-                                    value={formData.depCode}
-                                    onChange={(e) => handleCodeChange(e, 'dep')}
-                                    required placeholder="PEK"
-                                    maxLength={3}
-                                />
-                            </div>
-                            <div className="md:col-span-5">
-                                <Input label={t('airport_name')} name="depName" value={formData.depName} onChange={handleChange} required placeholder="Beijing Capital" />
-                            </div>
-                            <div className="md:col-span-4">
-                                <Input label={t('country')} name="depCountry" value={formData.depCountry} onChange={handleChange} placeholder="China" />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <Input label="Trip Name (Optional)" name="name" value={tripData.name} onChange={handleTripChange} placeholder="e.g. Summer Vacation 2024" autoFocus />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-[10px] text-slate-400 font-bold uppercase ml-1">Type</label>
+                                        <select name="type" value={tripData.type} onChange={handleTripChange} className="bg-black/50 border border-white/20 text-white rounded px-3 py-2 w-full focus:outline-none focus:border-cyan-400 text-sm h-[38px]">
+                                            <option value="OneWay">One Way</option>
+                                            <option value="RoundTrip">Round Trip</option>
+                                            <option value="MultiCity">Multi-City</option>
+                                        </select>
+                                    </div>
+                                    <Input label="Total Cost" name="cost" type="number" value={tripData.cost} onChange={handleTripChange} placeholder="0.00" icon={<DollarSign size={12} />} />
+                                </div>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 p-3 rounded-lg border border-dashed border-white/10 opacity-60 hover:opacity-100 transition-opacity">
-                            <Input label={t('latitude')} name="depLat" value={formData.depLat} onChange={handleChange} required placeholder="39.9042" />
-                            <Input label={t('longitude')} name="depLng" value={formData.depLng} onChange={handleChange} required placeholder="116.4074" />
+                        {/* Segments List */}
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-end">
+                                <h3 className="text-cyan-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                                    Flight Segments <span className="text-slate-500">({segments.length})</span>
+                                </h3>
+                                <button type="button" onClick={startAddSegment} className="text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 px-3 py-1.5 rounded hover:bg-cyan-500 hover:text-white transition-all flex items-center gap-1">
+                                    <Plus size={14} /> Add Flight
+                                </button>
+                            </div>
+
+                            <div className="space-y-3 min-h-[100px]">
+                                {segments.length === 0 ? (
+                                    <div className="border border-dashed border-white/10 rounded-xl p-8 text-center text-slate-500 flex flex-col items-center justify-center gap-3">
+                                        <Plane className="text-slate-700" size={32} />
+                                        <p className="text-sm">No flights added to this trip yet.</p>
+                                        <button onClick={startAddSegment} className="text-cyan-400 hover:underline text-sm">Add your first flight</button>
+                                    </div>
+                                ) : (
+                                    segments.map((seg, idx) => (
+                                        <div key={seg.id || idx} className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:border-cyan-500/30 transition-colors">
+                                            <div className="flex items-center gap-4">
+                                                <div className="flex flex-col items-center w-10">
+                                                    <span className="text-xs text-slate-500 mb-1">DEP</span>
+                                                    <span className="font-bold text-white text-lg leading-none">{seg.depCode}</span>
+                                                </div>
+                                                <Plane size={16} className="text-slate-600 rotate-90" />
+                                                <div className="flex flex-col items-center w-10">
+                                                    <span className="text-xs text-slate-500 mb-1">ARR</span>
+                                                    <span className="font-bold text-white text-lg leading-none">{seg.arrCode}</span>
+                                                </div>
+                                                <div className="h-8 w-px bg-white/10 mx-2"></div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs text-slate-400 flex items-center gap-1"><Calendar size={10} /> {seg.date}</span>
+                                                    <span className="text-[10px] text-slate-500 uppercase tracking-wider">{seg.airline} {seg.flightNumber}</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={() => startEditSegment(seg)} className="p-2 bg-black/50 rounded hover:bg-cyan-600 text-slate-400 hover:text-white transition-colors"><Edit2 size={14} /></button>
+                                                <button onClick={() => deleteSegment(seg.id)} className="p-2 bg-black/50 rounded hover:bg-red-600 text-slate-400 hover:text-white transition-colors"><Trash2 size={14} /></button>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
                         </div>
                     </div>
+                )}
 
-                    {/* Arrival Section */}
-                    <div className="space-y-4">
-                        <h3 className="text-emerald-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2 w-full">
-                            {t('arrival')} <span className="h-px bg-emerald-900/50 flex-1"></span>
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                            <div className="md:col-span-3">
-                                <Input
-                                    label={t('code')}
-                                    name="arrCode"
-                                    value={formData.arrCode}
-                                    onChange={(e) => handleCodeChange(e, 'arr')}
-                                    required placeholder="LHR"
-                                    maxLength={3}
-                                />
+                {/* VIEW: FLIGHT EDIT FORM */}
+                {view === 'FLIGHT' && (
+                    <form id="segment-form" onSubmit={saveSegment} className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+                        {/* Departure */}
+                        <div className="space-y-4">
+                            <h3 className="text-cyan-400 text-xs font-bold uppercase tracking-widest border-b border-cyan-900/50 pb-2">Departure</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                                <div className="md:col-span-3">
+                                    <Input label="Code" name="depCode" value={segmentForm.depCode} onChange={(e) => handleCodeChange(e, 'dep')} required placeholder="PEK" maxLength={3} autoFocus />
+                                </div>
+                                <div className="md:col-span-9">
+                                    <Input label="Airport Name" name="depName" value={segmentForm.depName} onChange={handleSegmentChange} required placeholder="Beijing Capital" />
+                                </div>
                             </div>
-                            <div className="md:col-span-5">
-                                <Input label={t('airport_name')} name="arrName" value={formData.arrName} onChange={handleChange} required placeholder="Heathrow" />
-                            </div>
-                            <div className="md:col-span-4">
-                                <Input label={t('country')} name="arrCountry" value={formData.arrCountry} onChange={handleChange} placeholder="UK" />
+                            <div className="grid grid-cols-2 gap-4">
+                                <Input label="Latitude" name="depLat" value={segmentForm.depLat} onChange={handleSegmentChange} required />
+                                <Input label="Longitude" name="depLng" value={segmentForm.depLng} onChange={handleSegmentChange} required />
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 p-3 rounded-lg border border-dashed border-white/10 opacity-60 hover:opacity-100 transition-opacity">
-                            <Input label={t('latitude')} name="arrLat" value={formData.arrLat} onChange={handleChange} required placeholder="51.5074" />
-                            <Input label={t('longitude')} name="arrLng" value={formData.arrLng} onChange={handleChange} required placeholder="-0.1278" />
+                        {/* Arrival */}
+                        <div className="space-y-4">
+                            <h3 className="text-emerald-400 text-xs font-bold uppercase tracking-widest border-b border-emerald-900/50 pb-2">Arrival</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                                <div className="md:col-span-3">
+                                    <Input label="Code" name="arrCode" value={segmentForm.arrCode} onChange={(e) => handleCodeChange(e, 'arr')} required placeholder="LHR" maxLength={3} />
+                                </div>
+                                <div className="md:col-span-9">
+                                    <Input label="Airport Name" name="arrName" value={segmentForm.arrName} onChange={handleSegmentChange} required placeholder="Heathrow" />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <Input label="Latitude" name="arrLat" value={segmentForm.arrLat} onChange={handleSegmentChange} required />
+                                <Input label="Longitude" name="arrLng" value={segmentForm.arrLng} onChange={handleSegmentChange} required />
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Meta Section */}
-                    <div className="space-y-4">
-                        <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                            {t('details')} <span className="h-px bg-white/10 flex-1"></span>
-                        </h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            {/* Pass lang attribute to date input to hint browser format */}
-                            <Input label={t('date')} type="date" name="date" value={formData.date} onChange={handleChange} required lang={language} />
-                            <Input label={t('notes')} name="notes" value={formData.notes} onChange={handleChange} placeholder="Business trip..." />
+                        {/* Details */}
+                        <div className="space-y-4">
+                            <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest border-b border-white/10 pb-2">Flight Info</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <Input label="Date" type="date" name="date" value={segmentForm.date} onChange={handleSegmentChange} required lang={language} />
+                                <Input label="Airline (Opt)" name="airline" value={segmentForm.airline} onChange={handleSegmentChange} placeholder="Delta" />
+                                <Input label="Flight No." name="flightNumber" value={segmentForm.flightNumber} onChange={handleSegmentChange} placeholder="DL123" />
+                                <Input label="Aircraft" name="aircraft" value={segmentForm.aircraft} onChange={handleSegmentChange} placeholder="A350" />
+                            </div>
+                            <div className="p-3 bg-white/5 rounded text-xs text-slate-400 italic">
+                                Note: Flight-specific costs can be 0 if you set a Total Trip Cost.
+                            </div>
                         </div>
-                    </div>
-                </form>
+                    </form>
+                )}
+
             </div>
 
-            {/* Footer */}
+            {/* FOOTER */}
             <div className="p-5 border-t border-white/10 flex justify-end gap-3 bg-white/5">
-                <button type="button" onClick={onClose} className="px-4 py-2 text-slate-400 hover:text-white text-sm font-medium transition-colors">{t('cancel')}</button>
-                <button form="flight-form" type="submit" className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold border border-cyan-400/20 rounded px-6 py-2 transition-all shadow-[0_0_20px_rgba(8,145,178,0.3)] hover:shadow-[0_0_30px_rgba(8,145,178,0.5)]">
-                    {initialData ? t('update_flight') : t('save_flight')}
-                </button>
+                {view === 'TRIP' ? (
+                    <>
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-slate-400 hover:text-white text-sm font-medium transition-colors">{t('cancel')}</button>
+                        <button onClick={handleSaveTrip} className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold border border-cyan-400/20 rounded px-6 py-2 transition-all shadow-[0_0_20px_rgba(8,145,178,0.3)] hover:shadow-[0_0_30px_rgba(8,145,178,0.5)]">
+                            {initialTrip ? 'Update Trip' : 'Save Trip'}
+                        </button>
+                    </>
+                ) : (
+                    <>
+                        <button type="button" onClick={() => setView('TRIP')} className="px-4 py-2 text-slate-400 hover:text-white text-sm font-medium transition-colors">Cancel Segment</button>
+                        <button form="segment-form" type="submit" className="bg-white text-black font-bold rounded px-6 py-2 hover:bg-slate-200 transition-colors">
+                            {editingSegmentId ? 'Update Segment' : 'Add Segment'}
+                        </button>
+                    </>
+                )}
             </div>
         </div>
     );
 }
 
-function Input({ label, type = "text", ...props }) {
+function Input({ label, type = "text", icon, ...props }) {
     return (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 w-full">
             <label className="text-[10px] text-slate-400 font-bold uppercase ml-1">{label}</label>
-            <input
-                type={type}
-                className="bg-black/50 border border-white/20 text-white rounded px-3 py-2 w-full focus:outline-none focus:border-cyan-400 transition-colors placeholder-slate-600 font-sans text-sm"
-                {...props}
-            />
+            <div className="relative">
+                <input
+                    type={type}
+                    className={`bg-black/50 border border-white/20 text-white rounded px-3 py-2 w-full focus:outline-none focus:border-cyan-400 transition-colors placeholder-slate-600 font-sans text-sm ${icon ? 'pl-8' : ''}`}
+                    {...props}
+                />
+                {icon && <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500">{icon}</div>}
+            </div>
         </div>
     )
 }
