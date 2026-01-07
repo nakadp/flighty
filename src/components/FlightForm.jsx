@@ -72,7 +72,7 @@ export default function FlightForm({ onClose, onSubmit, initialData = null }) {
     };
 
     return (
-        <div className="glass-panel rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in fade-in zoom-in duration-200 border border-white/10 bg-black/80 backdrop-blur-xl">
+        <div className="glass-panel rounded-2xl w-[95%] md:w-full md:max-w-2xl shadow-2xl flex flex-col max-h-[90vh] md:max-h-[85vh] animate-in fade-in zoom-in duration-200 border border-white/10 bg-black/80 backdrop-blur-xl">
             {/* Header */}
             <div className="p-5 border-b border-white/10 flex justify-between items-center bg-white/5">
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
@@ -93,7 +93,7 @@ export default function FlightForm({ onClose, onSubmit, initialData = null }) {
                         <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
                             {t('basic_info')} <span className="h-px bg-white/10 flex-1"></span>
                         </h3>
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <Input label={t('airline') + " (Optional)"} name="airline" value={formData.airline} onChange={handleChange} placeholder="Delta" />
                             <Input label={t('flight_number')} name="flightNumber" value={formData.flightNumber} onChange={handleChange} placeholder="DL123" />
                             <Input label={t('aircraft')} name="aircraft" value={formData.aircraft} onChange={handleChange} placeholder="A350-900" />
@@ -108,8 +108,8 @@ export default function FlightForm({ onClose, onSubmit, initialData = null }) {
                                 {t('departure')} <span className="h-px bg-cyan-900/50 flex-1"></span>
                             </h3>
                         </div>
-                        <div className="grid grid-cols-12 gap-4">
-                            <div className="col-span-3">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                            <div className="md:col-span-3">
                                 <Input
                                     label={t('code')}
                                     name="depCode"
@@ -119,10 +119,10 @@ export default function FlightForm({ onClose, onSubmit, initialData = null }) {
                                     maxLength={3}
                                 />
                             </div>
-                            <div className="col-span-5">
+                            <div className="md:col-span-5">
                                 <Input label={t('airport_name')} name="depName" value={formData.depName} onChange={handleChange} required placeholder="Beijing Capital" />
                             </div>
-                            <div className="col-span-4">
+                            <div className="md:col-span-4">
                                 <Input label={t('country')} name="depCountry" value={formData.depCountry} onChange={handleChange} placeholder="China" />
                             </div>
                         </div>
@@ -138,8 +138,8 @@ export default function FlightForm({ onClose, onSubmit, initialData = null }) {
                         <h3 className="text-emerald-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2 w-full">
                             {t('arrival')} <span className="h-px bg-emerald-900/50 flex-1"></span>
                         </h3>
-                        <div className="grid grid-cols-12 gap-4">
-                            <div className="col-span-3">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                            <div className="md:col-span-3">
                                 <Input
                                     label={t('code')}
                                     name="arrCode"
@@ -149,10 +149,10 @@ export default function FlightForm({ onClose, onSubmit, initialData = null }) {
                                     maxLength={3}
                                 />
                             </div>
-                            <div className="col-span-5">
+                            <div className="md:col-span-5">
                                 <Input label={t('airport_name')} name="arrName" value={formData.arrName} onChange={handleChange} required placeholder="Heathrow" />
                             </div>
-                            <div className="col-span-4">
+                            <div className="md:col-span-4">
                                 <Input label={t('country')} name="arrCountry" value={formData.arrCountry} onChange={handleChange} placeholder="UK" />
                             </div>
                         </div>

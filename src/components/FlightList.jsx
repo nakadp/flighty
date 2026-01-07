@@ -45,7 +45,7 @@ export default function FlightList({ flights, onClose, onDelete, onEdit }) {
     }, [filteredFlights]);
 
     return (
-        <div className="bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl w-full shadow-2xl flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
+        <div className="bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl w-[95%] md:w-full shadow-2xl flex flex-col max-h-[90vh] md:max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
             {/* Header & Filters */}
             <div className="p-4 border-b border-white/10 space-y-4 bg-white/5">
                 <div className="flex justify-between items-center">
@@ -59,11 +59,11 @@ export default function FlightList({ flights, onClose, onDelete, onEdit }) {
                 </div>
 
                 {/* Filter Controls */}
-                <div className="flex gap-2">
+                <div className="flex flex-col md:flex-row gap-2">
                     <select
                         value={filterYear}
                         onChange={(e) => setFilterYear(e.target.value)}
-                        className="bg-black/50 border border-white/10 text-xs text-white rounded px-2 py-1.5 focus:outline-none focus:border-cyan-500"
+                        className="bg-black/50 border border-white/10 text-xs text-white rounded px-2 py-1.5 focus:outline-none focus:border-cyan-500 w-full md:w-auto"
                     >
                         <option value="All">All Years</option>
                         {years.map(y => <option key={y} value={y}>{y}</option>)}
@@ -72,7 +72,7 @@ export default function FlightList({ flights, onClose, onDelete, onEdit }) {
                     <select
                         value={filterCountry}
                         onChange={(e) => setFilterCountry(e.target.value)}
-                        className="bg-black/50 border border-white/10 text-xs text-white rounded px-2 py-1.5 focus:outline-none focus:border-cyan-500 max-w-[150px]"
+                        className="bg-black/50 border border-white/10 text-xs text-white rounded px-2 py-1.5 focus:outline-none focus:border-cyan-500 w-full md:w-auto md:max-w-[150px]"
                     >
                         <option value="All">All Countries</option>
                         {countries.map(c => <option key={c} value={c}>{c}</option>)}
@@ -80,7 +80,7 @@ export default function FlightList({ flights, onClose, onDelete, onEdit }) {
                 </div>
 
                 {/* Mini Stats */}
-                <div className="flex gap-4 text-[10px] uppercase tracking-wider text-slate-400 font-mono">
+                <div className="flex flex-wrap gap-4 text-[10px] uppercase tracking-wider text-slate-400 font-mono">
                     <div><span className="text-white font-bold">{stats.count}</span> Flights</div>
                     <div><span className="text-cyan-400 font-bold">{formatDistance(stats.distance)}</span> km</div>
                     <div><span className="text-white font-bold">{stats.countries}</span> Countries</div>

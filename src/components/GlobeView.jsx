@@ -79,15 +79,28 @@ export default function GlobeView({ flights = [], width, height, onFlightClick }
     }, []);
 
     const processedFlights = useMemo(() => {
-        return flights.map((f) => ({
-            ...f,
-            startLat: f.depLat,
-            startLng: f.depLng,
-            endLat: f.arrLat,
-            endLng: f.arrLng,
-            color: ['#f59e0b', '#22d3ee'],
-            alt: 0.25,
-        }));
+        const routeCounts = {};
+
+        return flights.map((f) => {
+            const routeKey = `${f.depCode}-${f.arrCode}`;
+            if (!routeCounts[routeKey]) routeCounts[routeKey] = 0;
+            const index = routeCounts[routeKey]++;
+
+            // Base altitude is 0.25 (User default)
+            // Increment by 0.05 for each subsequent flight on the same route
+            // This creates a vertical stack of arcs
+            const altitudeOffset = index * 0.05;
+
+            return {
+                ...f,
+                startLat: f.depLat,
+                startLng: f.depLng,
+                endLat: f.arrLat,
+                endLng: f.arrLng,
+                color: ['#f59e0b', '#22d3ee'],
+                alt: 0.25 + altitudeOffset,
+            };
+        });
     }, [flights]);
 
     const isZoomedIn = altitude < 1.5;
