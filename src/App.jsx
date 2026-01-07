@@ -12,7 +12,7 @@ import { useLanguage } from './context/LanguageContext';
 // FIREBASE IMPORTS
 import { auth, db } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, onSnapshot, query, where, orderBy } from 'firebase/firestore';
 
 function App() {
   const { t } = useLanguage();
@@ -72,7 +72,13 @@ function App() {
     }
 
     console.log("Setting up Firestore watcher for:", user.uid);
-    const q = query(collection(db, "test"), orderBy("date", "desc"));
+    // Filter by userId
+    const q = query(
+      collection(db, "test"),
+      where("userId", "==", user.uid),
+      orderBy("date", "desc")
+    );
+
     const unsubscribeData = onSnapshot(q, (snapshot) => {
       console.log("Firestore Snapshot received. Docs:", snapshot.docs.length);
       const flightData = snapshot.docs.map(doc => ({
@@ -82,7 +88,12 @@ function App() {
       setFlights(flightData);
     }, (error) => {
       console.error("Firestore Error:", error);
-      alert("Database Error: " + error.message);
+      // Helpful alert for missing index (common when adding composite queries)
+      if (error.message.includes("indexes")) {
+        alert("Database Error: Index required. Check console for link to create it.");
+      } else {
+        alert("Database Error: " + error.message);
+      }
     });
 
     return () => unsubscribeData();
@@ -99,7 +110,14 @@ function App() {
 
     try {
       const flightRef = doc(db, "test", flight.id); // Use flight.id as Doc ID
-      await setDoc(flightRef, flight); // Merges or Create
+
+      // Ensure flight has userId
+      const flightData = {
+        ...flight,
+        userId: user.uid
+      };
+
+      await setDoc(flightRef, flightData); // Merges or Create
     } catch (e) {
       console.error("Error saving flight:", e);
       alert("Error saving: " + e.message);
