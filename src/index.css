@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+/* Umetrip Style Filters */
+.map-tiles-filter {
+  filter: contrast(1.1) brightness(0.9) sepia(1) hue-rotate(170deg) saturate(1.5);
+}
+
+.flight-path-glow {
+  filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.6));
+}
+
+.custom-icon {
+  background: transparent;
+  border: none;
+}
+
+@theme {
+  --color-glass-bg: rgba(15, 23, 42, 0.6);
+  --color-glass-border: rgba(255, 255, 255, 0.1);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: #000000;
+  overflow: hidden;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* Glass Utilities - Using CSS variables or just utility classes directly in components is safer 
+   but we can define simple classes if we want. 
+   In Tailwind v4, `@apply` works if the utilities are known.
+   The error was likely due to strictly missing @import "tailwindcss".
+*/
+
+.glass-panel {
+  background-color: var(--color-glass-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--color-glass-border);
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+/* Electron Window Drag */
+.app-region-drag {
+  -webkit-app-region: drag;
+}
+
+.app-region-no-drag {
+  -webkit-app-region: no-drag;
+}
