@@ -77,69 +77,75 @@ export default function MapView({ flights = [], onFlightClick }) {
         return validFlights.map((flight, idx) => {
             const routeKey = `${flight.depCode}-${flight.arrCode}`;
             if (!routeCounts[routeKey]) routeCounts[routeKey] = 0;
-            const count = routeCounts[routeKey];
-            routeCounts[routeKey]++;
+            const index = routeCounts[routeKey]++;
 
-            // REVERT LOGIC:
-            // User requested "Refer to the version before adding reverse direction arc".
-            // That means we remove the "isWestbound" check or at least its influence on curve DIRECTION.
-            // But we keep the "count" offset for stacking duplicates.
+            // Curvature Logic: "Keep Right"
+            // Always offset positively along the Right-Hand Normal vector to ensure loop separation.
 
-            // "Before Version" likely had just a minimal curve upward or standard geodesic.
-            // Let's use a standard upward curve (or side curve) for ALL flights, 
-            // but just offset by count.
+            const dLat = flight.arrLat - flight.depLat;
+            let dLng = flight.arrLng - flight.depLng;
 
-            // Actually, if we remove the "CurveFactor", we get a standard geodesic?
-            // `getIntermediatePoint` calculates a Great Circle (Geodesic).
-            // A Great Circle IS the shortest path.
-            // If we just use `getIntermediatePoint` without `latOffset`, we get the perfect straight line (on 3D sphere) which looks curved on Mercator.
-            // The user wants "convexity too big" -> "make it smaller".
+            // Basic wrap-around
+            if (dLng > 180) dLng -= 360;
+            if (dLng < -180) dLng += 360;
 
-            // Let's bring back a TINY amount of manual offset just for the "Arc" look the user seems to like (SkyTrace style),
-            // but keep it consistent.
+            // Calculate length (magnitude)
+            const len = Math.sqrt(dLat * dLat + dLng * dLng) || 1.0;
 
-            // Direction: West/East logic might still be good if subtle. 
-            // User: "Convex angle too big... reference previous version".
-            // Previous version likely used one fixed curve direction or none. 
-            // I will set Amplitude to 0.5 (Extremely subtle) and reduce stacking to 0.1.
+            // DAMPING:
+            // For very long flights, linear scaling (len * factor) produces huge arcs.
+            // We cap the "effective length" to prevent the arc from going off-map or looking ridiculous.
+            // Spain-China (~80 deg) is "Okay". Longer (~120 deg) is "Too Big".
+            // Let's cap effective len at ~60-70 degrees.
+            const effectiveLen = Math.min(len, 60);
 
-            let lngDiff = flight.arrLng - flight.depLng;
-            if (lngDiff > 180) lngDiff -= 360;
-            if (lngDiff < -180) lngDiff += 360;
-            const isWestbound = lngDiff < 0;
-            const curveFactor = isWestbound ? 1 : 1; // Forced SAME direction if they hated the reverse logic? Or -1?
-            // Wait, "before adding return reverse direction protrusion" means it was UNIDIRECTIONAL (always Up or always Down).
-            // So `curveFactor` should be constant (e.g. 1).
+            // Unit Normal Vector [-y, x] (Right Hand Rule relative to movement)
+            const nLat = -(dLng / len);
+            const nLng = (dLat / len);
+
+            // Stacking Factor - TUNED:
+            // User requested "slight curvature" foundation with small offsets.
+            // Reduced Base to 0.1 (from 0.2)
+            // Reduced Step to 0.03 (from 0.05) to keep bundle tight.
+            const curvatureFactor = 0.1 + (index * 0.03);
 
             const path = [];
             const numPoints = 80;
+
             for (let i = 0; i <= numPoints; i++) {
-                const point = getIntermediatePoint(flight.depLat, flight.depLng, flight.arrLat, flight.arrLng, i / numPoints);
-
                 const t = i / numPoints;
-                const parabola = 4 * t * (1 - t);
+                const point = getIntermediatePoint(flight.depLat, flight.depLng, flight.arrLat, flight.arrLng, t);
 
-                // AMPLITUDE: Reduced to 0.2 (Very very subtle).
-                // OFFSET: 0.2 * count
-                // DIRECTION: Fixed (Always +1) so it looks uniform like typical flight maps.
-                const latOffset = (0.5 + (count * 0.2)) * parabola * 1;
+                // Add safety check for NaN points
+                if (point && Number.isFinite(point[0]) && Number.isFinite(point[1])) {
+                    const parabola = 4 * t * (1 - t);
+                    // Use effectiveLen to clamp the max curvature size for very long flights
+                    const offsetMag = effectiveLen * curvatureFactor * parabola;
 
-                point[0] += latOffset;
-                path.push(point);
+                    point[0] += offsetMag * nLat;
+                    point[1] += offsetMag * nLng;
+
+                    path.push(point);
+                }
             }
+
+            // Ensure valid path
+            if (path.length < 2) return null;
 
             const midIndex = Math.floor(path.length / 2);
             const midPoint = path[midIndex];
             const nextPoint = path[midIndex + 5] || path[path.length - 1];
+
+            // Calculate angle safely
             const angle = getBearing(midPoint[0], midPoint[1], nextPoint[0], nextPoint[1]);
 
             return {
                 id: flight.id || idx,
                 positions: path,
                 arrowPos: midPoint,
-                arrowAngle: angle - 90
+                arrowAngle: Number.isFinite(angle) ? angle - 90 : 0
             };
-        });
+        }).filter(Boolean); // Filter out nulls
     }, [validFlights]);
 
     return (
