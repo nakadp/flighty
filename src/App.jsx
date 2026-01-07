@@ -55,7 +55,8 @@ function App() {
     return {
       count: flights.length,
       distance: totalDist,
-      hours: Math.round(totalDist / 740)
+      hours: Math.round(totalDist / 740),
+      totalCost
     };
   }, [flights]);
 
