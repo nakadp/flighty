@@ -143,6 +143,9 @@ function App() {
   // hover:bg-cyan-500 hover:bg-violet-500 hover:bg-orange-500 hover:bg-emerald-500 hover:bg-rose-500
   // bg-cyan-900 bg-violet-900 bg-orange-900 bg-emerald-900 bg-rose-900
 
+  // Determine if running in Electron
+  const isElectron = window.ipcRenderer || (window.process && window.process.type === 'renderer') || navigator.userAgent.includes('Electron');
+
   return (
     <div className="relative w-screen h-screen bg-black overflow-hidden font-sans select-none text-white">
 
@@ -161,7 +164,7 @@ function App() {
       </div>
 
       {/* TOP BAR */}
-      <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-black/90 via-black/40 to-transparent z-40 flex items-center justify-between px-6 pointer-events-none">
+      <div className={`absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-black/90 via-black/40 to-transparent z-40 flex items-center justify-between px-6 ${isElectron ? 'pointer-events-none' : ''}`}>
         <div className="flex items-center gap-4 pointer-events-auto">
           {user.photoURL ? (
             <img src={user.photoURL} alt="User" className={`w-10 h-10 rounded-full border ${getAccentBorder()}/50`} />
@@ -322,7 +325,7 @@ function App() {
         </div>
       )}
 
-      <div className="absolute top-0 left-0 right-0 h-6 z-[100] app-region-drag" />
+      {isElectron && <div className="absolute top-0 left-0 right-0 h-6 z-[100] app-region-drag" />}
     </div>
   );
 }
