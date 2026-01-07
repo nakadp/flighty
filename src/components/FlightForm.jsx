@@ -9,7 +9,7 @@ export default function FlightForm({ onClose, onSubmit, initialData = null }) {
         depCode: '', depName: '', depLat: '', depLng: '', depCountry: '',
         arrCode: '', arrName: '', arrLat: '', arrLng: '', arrCountry: '',
         airline: '', flightNumber: '', aircraft: '',
-        date: '', notes: ''
+        date: '', notes: '', cost: ''
     });
 
     // Load initial data if editing
@@ -97,6 +97,7 @@ export default function FlightForm({ onClose, onSubmit, initialData = null }) {
                             <Input label={t('airline') + " (Optional)"} name="airline" value={formData.airline} onChange={handleChange} placeholder="Delta" />
                             <Input label={t('flight_number')} name="flightNumber" value={formData.flightNumber} onChange={handleChange} placeholder="DL123" />
                             <Input label={t('aircraft')} name="aircraft" value={formData.aircraft} onChange={handleChange} placeholder="A350-900" />
+                            <Input label={t('cost') || "Cost"} name="cost" type="number" value={formData.cost} onChange={handleChange} placeholder="0.00" />
                         </div>
                     </div>
 

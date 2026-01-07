@@ -3,8 +3,9 @@ import { X, User, Palette, Globe, LogOut } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
+import { CURRENCIES } from '../data/currencies';
 
-function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, setViewMode }) {
+function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, setViewMode, currency, setCurrency }) {
     const { t, language, changeLanguage } = useLanguage();
     const [activeTab, setActiveTab] = useState('account');
 
@@ -118,6 +119,21 @@ function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, s
                                         <div className="text-xs opacity-70">Chinese (Simplified)</div>
                                     </button>
                                 </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <label className="text-sm font-medium text-slate-400 uppercase tracking-wider">{t('currency') || "Currency"}</label>
+                                <select
+                                    value={currency}
+                                    onChange={(e) => setCurrency(e.target.value)}
+                                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-cyan-500 appearance-none cursor-pointer"
+                                >
+                                    {CURRENCIES.map((c) => (
+                                        <option key={c.code} value={c.code}>
+                                            {c.code} - {c.symbol} {c.name}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
                     )}

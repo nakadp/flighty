@@ -20,6 +20,7 @@ function App() {
   const [showForm, setShowForm] = useState(false);
   const [showList, setShowList] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [currency, setCurrency] = useState('USD');
   const [accentColor, setAccentColor] = useState('cyan');
 
   const [flights, setFlights] = useState([]);
@@ -47,10 +48,15 @@ function App() {
       return acc + calculateDistance(flight.depLat, flight.depLng, flight.arrLat, flight.arrLng);
     }, 0);
 
+    const totalCost = flights.reduce((acc, flight) => {
+      return acc + (parseFloat(flight.cost) || 0);
+    }, 0);
+
     return {
       count: flights.length,
       distance: totalDist,
-      hours: Math.round(totalDist / 800)
+      hours: Math.round(totalDist / 800),
+      totalCost
     };
   }, [flights]);
 
@@ -213,6 +219,14 @@ function App() {
             <div className="text-xs text-slate-400 uppercase tracking-wider mb-0.5">{t('hours')}</div>
             <div className="text-xl font-bold text-white font-mono">{stats.hours} <span className="text-xs text-slate-500">h</span></div>
           </div>
+          <div className="h-8 w-px bg-white/10"></div>
+          <div className="text-center">
+            <div className="text-xs text-slate-400 uppercase tracking-wider mb-0.5">{t('cost')}</div>
+            <div className="text-xl font-bold text-white font-mono">
+              <span className="text-xs text-slate-500 mr-1">{currency}</span>
+              {stats.totalCost.toLocaleString()}
+            </div>
+          </div>
         </div>
 
         {/* Placeholder for balance */}
@@ -266,6 +280,8 @@ function App() {
           setAccentColor={setAccentColor}
           viewMode={viewMode}
           setViewMode={setViewMode}
+          currency={currency}
+          setCurrency={setCurrency}
         />
       )}
 
