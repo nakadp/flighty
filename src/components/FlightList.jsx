@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { X, Plane, Trash2, Edit2, Calendar, Layers, Map as MapIcon, ChevronDown, ChevronRight, DollarSign } from 'lucide-react';
 import { formatDistance, calculateDistance } from '../utils/calculations';
+import { CURRENCIES } from '../data/currencies';
 
-export default function FlightList({ flights, trips = [], onClose, onDelete, onDeleteTrip, onEdit }) {
+export default function FlightList({ flights, trips = [], currency = 'USD', onClose, onDelete, onDeleteTrip, onEdit }) {
     const [filterYear, setFilterYear] = useState('All');
     const [filterCountry, setFilterCountry] = useState('All');
     const [expandedTrips, setExpandedTrips] = useState(new Set());
@@ -178,7 +179,8 @@ export default function FlightList({ flights, trips = [], onClose, onDelete, onD
                                         <div className="flex items-center gap-3">
                                             {trip.cost && (
                                                 <div className="text-xs font-mono text-emerald-400 flex items-center">
-                                                    <DollarSign size={10} />{trip.cost}
+                                                    <span className="mr-0.5">{CURRENCIES.find(c => c.code === currency)?.symbol || '$'}</span>
+                                                    {trip.cost}
                                                 </div>
                                             )}
 

@@ -371,6 +371,7 @@ function App() {
             <FlightList
               flights={flights}
               trips={trips}
+              currency={currency}
               onClose={() => setShowList(false)}
               onDelete={handleDeleteFlight}
               onDeleteTrip={handleDeleteTrip}
