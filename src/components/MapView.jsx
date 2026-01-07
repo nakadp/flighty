@@ -150,11 +150,15 @@ export default function MapView({ flights = [], onFlightClick }) {
                 style={{ background: '#020617' }}
                 whenCreated={map => map.invalidateSize()}
                 zoomControl={false}
+                minZoom={2}
+                maxBounds={[[-90, -180], [90, 180]]}
+                maxBoundsViscosity={1.0}
             >
                 <TileLayer
                     attribution='&copy; CARTO'
                     url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
                     className="map-tiles-filter"
+                    noWrap={true}
                 />
 
                 {flightPaths.map(p => (
