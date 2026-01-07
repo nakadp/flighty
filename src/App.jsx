@@ -50,7 +50,7 @@ function App() {
     return {
       count: flights.length,
       distance: totalDist,
-      hours: Math.round(totalDist / 800)
+      hours: Math.round(totalDist / 740)
     };
   }, [flights]);
 
@@ -182,8 +182,8 @@ function App() {
       </div>
 
       {/* TOP BAR */}
-      <div className={`absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-black/90 via-black/40 to-transparent z-40 flex items-center justify-between px-6 ${isElectron ? 'pointer-events-none' : ''}`}>
-        <div className="flex items-center gap-4 pointer-events-auto">
+      <div className={`absolute top-0 left-0 right-0 h-auto min-h-[80px] md:h-20 bg-gradient-to-b from-black/90 via-black/40 to-transparent z-40 flex flex-col md:flex-row items-center justify-between px-4 md:px-6 py-2 md:py-0 transition-all ${isElectron ? 'pointer-events-none' : ''}`}>
+        <div className="flex items-center gap-4 pointer-events-auto w-full md:w-auto">
           {user.photoURL ? (
             <img src={user.photoURL} alt="User" className={`w-10 h-10 rounded-full border ${getAccentBorder()}/50`} />
           ) : (
@@ -198,7 +198,7 @@ function App() {
           </div>
         </div>
 
-        <div className="flex items-center gap-8 pointer-events-auto cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setShowList(true)}>
+        <div className="flex items-center gap-4 md:gap-8 pointer-events-auto cursor-pointer hover:opacity-80 transition-opacity mt-2 md:mt-0 w-full md:w-auto justify-center md:justify-end" onClick={() => setShowList(true)}>
           <div className="text-center">
             <div className="text-xs text-slate-400 uppercase tracking-wider mb-0.5">{t('flights')}</div>
             <div className="text-xl font-bold text-white font-mono">{stats.count}</div>
@@ -216,11 +216,11 @@ function App() {
         </div>
 
         {/* Placeholder for balance */}
-        <div className="w-24"></div>
+        <div className="hidden md:block w-24"></div>
       </div>
 
       {/* RIGHT ACTIONS */}
-      <div className="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col gap-4 z-40 pointer-events-auto">
+      <div className="absolute right-4 md:right-6 top-[60%] md:top-1/2 -translate-y-1/2 flex flex-col gap-3 md:gap-4 z-40 pointer-events-auto">
         <button
           onClick={() => setViewMode(m => m === '3D' ? '2D' : '3D')}
           className={`w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-${accentColor}-500/20 hover:border-${accentColor}-400/50 hover:${getAccentText()} transition-all shadow-lg group relative`}
@@ -247,7 +247,7 @@ function App() {
       </div>
 
       {/* FAB */}
-      <div className="absolute bottom-8 right-6 z-40 pointer-events-auto">
+      <div className="absolute bottom-6 right-4 md:bottom-8 md:right-6 z-40 pointer-events-auto">
         <button
           onClick={() => { setEditingFlight(null); setShowForm(true); }}
           className={`group relative flex items-center justify-center w-14 h-14 rounded-full ${getAccentBg()} hover:bg-${accentColor}-500 text-white shadow-[0_0_30px_rgba(255,255,255,0.2)] transition-all hover:scale-110 active:scale-95`}
