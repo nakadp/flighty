@@ -14,10 +14,7 @@
   border: none;
 }
 
-@theme {
-  --color-glass-bg: rgba(15, 23, 42, 0.6);
-  --color-glass-border: rgba(255, 255, 255, 0.1);
-}
+
 
 html,
 body,
@@ -47,8 +44,28 @@ body,
   background: rgba(255, 255, 255, 0.4);
 }
 
-/* Glass Utilities - Using CSS variables or just utility classes directly in components is safer 
-   but we can define simple classes if we want. 
+:root {
+  --color-cyan: #06b6d4;
+  --color-violet: #8b5cf6;
+  --color-orange: #f97316;
+  --color-emerald: #10b981;
+  --color-rose: #f43f5e;
+  --color-glass-bg: rgba(15, 23, 42, 0.6);
+  --color-glass-border: rgba(255, 255, 255, 0.1);
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: black;
+  /* Ensure black bg to avoid white flashes */
+}
+
+/* Glass Utilities - Using CSS variables or just utility classes directly in components is safer
+   but we can define simple classes if we want.
    In Tailwind v4, `@apply` works if the utilities are known.
    The error was likely due to strictly missing @import "tailwindcss".
 */
