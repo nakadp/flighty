@@ -27,5 +27,15 @@
     "arrival": "目的地",
     "date": "日期",
     "loading": "加载中...",
-    "theme": "主题"
+    "theme": "主题",
+    "log_new_flight": "记录新航班",
+    "basic_info": "基本信息",
+    "details": "详细信息",
+    "code": "代码",
+    "airport_name": "机场名称",
+    "country": "国家/地区",
+    "latitude": "纬度",
+    "longitude": "经度",
+    "update_flight": "更新航班",
+    "save_flight": "保存航班"
 }

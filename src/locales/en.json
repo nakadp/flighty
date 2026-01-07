@@ -21,11 +21,21 @@
     "cancel": "Cancel",
     "notes": "Notes",
     "airline": "Airline",
-    "flight_number": "Flight Number",
+    "flight_number": "Flight #",
     "aircraft": "Aircraft",
     "departure": "Departure",
     "arrival": "Arrival",
     "date": "Date",
     "loading": "Loading...",
-    "theme": "Theme"
+    "theme": "Theme",
+    "log_new_flight": "Log New Flight",
+    "basic_info": "Basic Info",
+    "details": "Details",
+    "code": "Code",
+    "airport_name": "Airport Name",
+    "country": "Country",
+    "latitude": "Latitude",
+    "longitude": "Longitude",
+    "update_flight": "Update Flight",
+    "save_flight": "Save Flight"
 }

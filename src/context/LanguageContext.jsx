@@ -6,7 +6,8 @@ const LanguageContext = createContext();
 
 const translations = {
     en,
-    zh
+    'zh-CN': zh,
+    zh // fallback
 };
 
 export function LanguageProvider({ children }) {
@@ -24,8 +25,14 @@ export function LanguageProvider({ children }) {
         if (translations[lang]) {
             setLanguage(lang);
             localStorage.setItem('app_language', lang);
+            document.documentElement.lang = lang; // Sync HTML lang attribute
         }
     };
+
+    // Sync on mount
+    useEffect(() => {
+        document.documentElement.lang = language;
+    }, [language]);
 
     const t = (key) => {
         return translations[language][key] || key;

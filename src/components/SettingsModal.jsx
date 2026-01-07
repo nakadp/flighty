@@ -36,8 +36,8 @@ function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, s
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === tab.id
-                                        ? `bg-${accentColor}-500/10 text-${accentColor}-400 ring-1 ring-${accentColor}-500/20`
-                                        : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                    ? `bg-${accentColor}-500/10 text-${accentColor}-400 ring-1 ring-${accentColor}-500/20`
+                                    : 'text-slate-400 hover:text-white hover:bg-white/5'
                                     }`}
                             >
                                 <tab.icon size={18} />
@@ -100,18 +100,18 @@ function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, s
                                     <button
                                         onClick={() => changeLanguage('en')}
                                         className={`p-4 rounded-xl border transition-all text-left ${language === 'en'
-                                                ? `bg-${accentColor}-500/20 border-${accentColor}-500/50 text-white`
-                                                : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
+                                            ? `bg-${accentColor}-500/20 border-${accentColor}-500/50 text-white`
+                                            : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
                                             }`}
                                     >
                                         <div className="font-bold">English</div>
                                         <div className="text-xs opacity-70">English</div>
                                     </button>
                                     <button
-                                        onClick={() => changeLanguage('zh')}
-                                        className={`p-4 rounded-xl border transition-all text-left ${language === 'zh'
-                                                ? `bg-${accentColor}-500/20 border-${accentColor}-500/50 text-white`
-                                                : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
+                                        onClick={() => changeLanguage('zh-CN')}
+                                        className={`p-4 rounded-xl border transition-all text-left ${language === 'zh-CN'
+                                            ? `bg-${accentColor}-500/20 border-${accentColor}-500/50 text-white`
+                                            : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
                                             }`}
                                     >
                                         <div className="font-bold">简体中文</div>
@@ -152,8 +152,8 @@ function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, s
                                     <button
                                         onClick={() => setViewMode('2D')}
                                         className={`p-4 rounded-xl border transition-all text-center ${viewMode === '2D'
-                                                ? `bg-${accentColor}-500/20 border-${accentColor}-500/50 text-white`
-                                                : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
+                                            ? `bg-${accentColor}-500/20 border-${accentColor}-500/50 text-white`
+                                            : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
                                             }`}
                                     >
                                         2D Map
@@ -161,8 +161,8 @@ function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, s
                                     <button
                                         onClick={() => setViewMode('3D')}
                                         className={`p-4 rounded-xl border transition-all text-center ${viewMode === '3D'
-                                                ? `bg-${accentColor}-500/20 border-${accentColor}-500/50 text-white`
-                                                : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
+                                            ? `bg-${accentColor}-500/20 border-${accentColor}-500/50 text-white`
+                                            : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
                                             }`}
                                     >
                                         3D Globe

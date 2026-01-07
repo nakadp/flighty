@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plane, Search } from 'lucide-react';
 import { AIRPORTS } from '../data/airports';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function FlightForm({ onClose, onSubmit, initialData = null }) {
+    const { t, language } = useLanguage();
     const [formData, setFormData] = useState({
         depCode: '', depName: '', depLat: '', depLng: '', depCountry: '',
         arrCode: '', arrName: '', arrLat: '', arrLng: '', arrCountry: '',
@@ -35,7 +37,7 @@ export default function FlightForm({ onClose, onSubmit, initialData = null }) {
                         depName: airport.name,
                         depLat: airport.lat,
                         depLng: airport.lng,
-                        depCountry: airport.country || '' // Assuming AIRPORTS has country, otherwise empty
+                        depCountry: airport.country || ''
                     }));
                 } else {
                     setFormData(prev => ({
@@ -75,7 +77,7 @@ export default function FlightForm({ onClose, onSubmit, initialData = null }) {
             <div className="p-5 border-b border-white/10 flex justify-between items-center bg-white/5">
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
                     <Plane className="text-cyan-400" size={20} />
-                    {initialData ? 'Edit Flight' : 'Log New Flight'}
+                    {initialData ? t('edit_flight') : t('log_new_flight')}
                 </h2>
                 <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
                     <X size={20} />
@@ -89,12 +91,12 @@ export default function FlightForm({ onClose, onSubmit, initialData = null }) {
                     {/* Flight Info Section */}
                     <div className="space-y-4">
                         <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                            Basic Info <span className="h-px bg-white/10 flex-1"></span>
+                            {t('basic_info')} <span className="h-px bg-white/10 flex-1"></span>
                         </h3>
                         <div className="grid grid-cols-3 gap-4">
-                            <Input label="Airline (Optional)" name="airline" value={formData.airline} onChange={handleChange} placeholder="Delta" />
-                            <Input label="Flight #" name="flightNumber" value={formData.flightNumber} onChange={handleChange} placeholder="DL123" />
-                            <Input label="Aircraft" name="aircraft" value={formData.aircraft} onChange={handleChange} placeholder="A350-900" />
+                            <Input label={t('airline') + " (Optional)"} name="airline" value={formData.airline} onChange={handleChange} placeholder="Delta" />
+                            <Input label={t('flight_number')} name="flightNumber" value={formData.flightNumber} onChange={handleChange} placeholder="DL123" />
+                            <Input label={t('aircraft')} name="aircraft" value={formData.aircraft} onChange={handleChange} placeholder="A350-900" />
                         </div>
                     </div>
 
@@ -102,13 +104,13 @@ export default function FlightForm({ onClose, onSubmit, initialData = null }) {
                     <div className="space-y-4">
                         <div className="flex justify-between items-center">
                             <h3 className="text-cyan-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2 w-full">
-                                Departure <span className="h-px bg-cyan-900/50 flex-1"></span>
+                                {t('departure')} <span className="h-px bg-cyan-900/50 flex-1"></span>
                             </h3>
                         </div>
                         <div className="grid grid-cols-12 gap-4">
                             <div className="col-span-3">
                                 <Input
-                                    label="Code"
+                                    label={t('code')}
                                     name="depCode"
                                     value={formData.depCode}
                                     onChange={(e) => handleCodeChange(e, 'dep')}
@@ -117,28 +119,28 @@ export default function FlightForm({ onClose, onSubmit, initialData = null }) {
                                 />
                             </div>
                             <div className="col-span-5">
-                                <Input label="Airport Name" name="depName" value={formData.depName} onChange={handleChange} required placeholder="Beijing Capital" />
+                                <Input label={t('airport_name')} name="depName" value={formData.depName} onChange={handleChange} required placeholder="Beijing Capital" />
                             </div>
                             <div className="col-span-4">
-                                <Input label="Country" name="depCountry" value={formData.depCountry} onChange={handleChange} placeholder="China" />
+                                <Input label={t('country')} name="depCountry" value={formData.depCountry} onChange={handleChange} placeholder="China" />
                             </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4 p-3 rounded-lg border border-dashed border-white/10 opacity-60 hover:opacity-100 transition-opacity">
-                            <Input label="Latitude" name="depLat" value={formData.depLat} onChange={handleChange} required placeholder="39.9042" />
-                            <Input label="Longitude" name="depLng" value={formData.depLng} onChange={handleChange} required placeholder="116.4074" />
+                            <Input label={t('latitude')} name="depLat" value={formData.depLat} onChange={handleChange} required placeholder="39.9042" />
+                            <Input label={t('longitude')} name="depLng" value={formData.depLng} onChange={handleChange} required placeholder="116.4074" />
                         </div>
                     </div>
 
                     {/* Arrival Section */}
                     <div className="space-y-4">
                         <h3 className="text-emerald-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2 w-full">
-                            Arrival <span className="h-px bg-emerald-900/50 flex-1"></span>
+                            {t('arrival')} <span className="h-px bg-emerald-900/50 flex-1"></span>
                         </h3>
                         <div className="grid grid-cols-12 gap-4">
                             <div className="col-span-3">
                                 <Input
-                                    label="Code"
+                                    label={t('code')}
                                     name="arrCode"
                                     value={formData.arrCode}
                                     onChange={(e) => handleCodeChange(e, 'arr')}
@@ -147,27 +149,28 @@ export default function FlightForm({ onClose, onSubmit, initialData = null }) {
                                 />
                             </div>
                             <div className="col-span-5">
-                                <Input label="Airport Name" name="arrName" value={formData.arrName} onChange={handleChange} required placeholder="Heathrow" />
+                                <Input label={t('airport_name')} name="arrName" value={formData.arrName} onChange={handleChange} required placeholder="Heathrow" />
                             </div>
                             <div className="col-span-4">
-                                <Input label="Country" name="arrCountry" value={formData.arrCountry} onChange={handleChange} placeholder="UK" />
+                                <Input label={t('country')} name="arrCountry" value={formData.arrCountry} onChange={handleChange} placeholder="UK" />
                             </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4 p-3 rounded-lg border border-dashed border-white/10 opacity-60 hover:opacity-100 transition-opacity">
-                            <Input label="Latitude" name="arrLat" value={formData.arrLat} onChange={handleChange} required placeholder="51.5074" />
-                            <Input label="Longitude" name="arrLng" value={formData.arrLng} onChange={handleChange} required placeholder="-0.1278" />
+                            <Input label={t('latitude')} name="arrLat" value={formData.arrLat} onChange={handleChange} required placeholder="51.5074" />
+                            <Input label={t('longitude')} name="arrLng" value={formData.arrLng} onChange={handleChange} required placeholder="-0.1278" />
                         </div>
                     </div>
 
                     {/* Meta Section */}
                     <div className="space-y-4">
                         <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                            Details <span className="h-px bg-white/10 flex-1"></span>
+                            {t('details')} <span className="h-px bg-white/10 flex-1"></span>
                         </h3>
                         <div className="grid grid-cols-2 gap-4">
-                            <Input label="Date" type="date" name="date" value={formData.date} onChange={handleChange} required />
-                            <Input label="Notes" name="notes" value={formData.notes} onChange={handleChange} placeholder="Business trip..." />
+                            {/* Pass lang attribute to date input to hint browser format */}
+                            <Input label={t('date')} type="date" name="date" value={formData.date} onChange={handleChange} required lang={language} />
+                            <Input label={t('notes')} name="notes" value={formData.notes} onChange={handleChange} placeholder="Business trip..." />
                         </div>
                     </div>
                 </form>
@@ -175,9 +178,9 @@ export default function FlightForm({ onClose, onSubmit, initialData = null }) {
 
             {/* Footer */}
             <div className="p-5 border-t border-white/10 flex justify-end gap-3 bg-white/5">
-                <button type="button" onClick={onClose} className="px-4 py-2 text-slate-400 hover:text-white text-sm font-medium transition-colors">Cancel</button>
+                <button type="button" onClick={onClose} className="px-4 py-2 text-slate-400 hover:text-white text-sm font-medium transition-colors">{t('cancel')}</button>
                 <button form="flight-form" type="submit" className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold border border-cyan-400/20 rounded px-6 py-2 transition-all shadow-[0_0_20px_rgba(8,145,178,0.3)] hover:shadow-[0_0_30px_rgba(8,145,178,0.5)]">
-                    {initialData ? 'Update Flight' : 'Save Flight'}
+                    {initialData ? t('update_flight') : t('save_flight')}
                 </button>
             </div>
         </div>
@@ -190,7 +193,7 @@ function Input({ label, type = "text", ...props }) {
             <label className="text-[10px] text-slate-400 font-bold uppercase ml-1">{label}</label>
             <input
                 type={type}
-                className="bg-black/50 border border-white/20 text-white rounded px-3 py-2 w-full focus:outline-none focus:border-cyan-400 transition-colors placeholder-slate-600 font-mono text-sm"
+                className="bg-black/50 border border-white/20 text-white rounded px-3 py-2 w-full focus:outline-none focus:border-cyan-400 transition-colors placeholder-slate-600 font-sans text-sm"
                 {...props}
             />
         </div>
