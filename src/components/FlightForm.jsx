@@ -4,15 +4,19 @@ import { AIRPORTS } from '../data/airports';
 
 export default function FlightForm({ onClose, onSubmit, initialData = null }) {
     const [formData, setFormData] = useState({
-        depCode: '', depName: '', depLat: '', depLng: '',
-        arrCode: '', arrName: '', arrLat: '', arrLng: '',
+        depCode: '', depName: '', depLat: '', depLng: '', depCountry: '',
+        arrCode: '', arrName: '', arrLat: '', arrLng: '', arrCountry: '',
+        airline: '', flightNumber: '', aircraft: '',
         date: '', notes: ''
     });
 
     // Load initial data if editing
     useEffect(() => {
         if (initialData) {
-            setFormData(initialData);
+            setFormData(prev => ({
+                ...prev, // Keep defaults for new fields if old data doesn't have them
+                ...initialData
+            }));
         }
     }, [initialData]);
 
@@ -30,7 +34,8 @@ export default function FlightForm({ onClose, onSubmit, initialData = null }) {
                         depCode: airport.iata,
                         depName: airport.name,
                         depLat: airport.lat,
-                        depLng: airport.lng
+                        depLng: airport.lng,
+                        depCountry: airport.country || '' // Assuming AIRPORTS has country, otherwise empty
                     }));
                 } else {
                     setFormData(prev => ({
@@ -38,7 +43,8 @@ export default function FlightForm({ onClose, onSubmit, initialData = null }) {
                         arrCode: airport.iata,
                         arrName: airport.name,
                         arrLat: airport.lat,
-                        arrLng: airport.lng
+                        arrLng: airport.lng,
+                        arrCountry: airport.country || ''
                     }));
                 }
             }
@@ -64,7 +70,7 @@ export default function FlightForm({ onClose, onSubmit, initialData = null }) {
     };
 
     return (
-        <div className="glass-panel rounded-2xl w-full shadow-2xl flex flex-col max-h-[85vh] animate-in fade-in zoom-in duration-200">
+        <div className="glass-panel rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in fade-in zoom-in duration-200 border border-white/10 bg-black/80 backdrop-blur-xl">
             {/* Header */}
             <div className="p-5 border-b border-white/10 flex justify-between items-center bg-white/5">
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
@@ -77,56 +83,92 @@ export default function FlightForm({ onClose, onSubmit, initialData = null }) {
             </div>
 
             {/* Scrollable Form Body */}
-            <div className="p-6 overflow-y-auto custom-scrollbar">
-                <form id="flight-form" onSubmit={handleSubmit} className="space-y-6">
+            <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+                <form id="flight-form" onSubmit={handleSubmit} className="space-y-8">
+
+                    {/* Flight Info Section */}
+                    <div className="space-y-4">
+                        <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                            Basic Info <span className="h-px bg-white/10 flex-1"></span>
+                        </h3>
+                        <div className="grid grid-cols-3 gap-4">
+                            <Input label="Airline (Optional)" name="airline" value={formData.airline} onChange={handleChange} placeholder="Delta" />
+                            <Input label="Flight #" name="flightNumber" value={formData.flightNumber} onChange={handleChange} placeholder="DL123" />
+                            <Input label="Aircraft" name="aircraft" value={formData.aircraft} onChange={handleChange} placeholder="A350-900" />
+                        </div>
+                    </div>
 
                     {/* Departure Section */}
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                         <div className="flex justify-between items-center">
-                            <h3 className="text-cyan-400 text-xs font-bold uppercase tracking-widest">Departure</h3>
-                            <span className="text-[10px] text-slate-500">Auto-fills on valid IATA code (e.g., LHR)</span>
+                            <h3 className="text-cyan-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2 w-full">
+                                Departure <span className="h-px bg-cyan-900/50 flex-1"></span>
+                            </h3>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <Input
-                                label="Airport Code"
-                                name="depCode"
-                                value={formData.depCode}
-                                onChange={(e) => handleCodeChange(e, 'dep')}
-                                required placeholder="PEK"
-                                maxLength={3}
-                            />
-                            <Input label="Airport Name" name="depName" value={formData.depName} onChange={handleChange} required placeholder="Beijing Capital" />
+                        <div className="grid grid-cols-12 gap-4">
+                            <div className="col-span-3">
+                                <Input
+                                    label="Code"
+                                    name="depCode"
+                                    value={formData.depCode}
+                                    onChange={(e) => handleCodeChange(e, 'dep')}
+                                    required placeholder="PEK"
+                                    maxLength={3}
+                                />
+                            </div>
+                            <div className="col-span-5">
+                                <Input label="Airport Name" name="depName" value={formData.depName} onChange={handleChange} required placeholder="Beijing Capital" />
+                            </div>
+                            <div className="col-span-4">
+                                <Input label="Country" name="depCountry" value={formData.depCountry} onChange={handleChange} placeholder="China" />
+                            </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 bg-white/5 p-4 rounded-lg border border-white/5 opacity-70 hover:opacity-100 transition-opacity">
+
+                        <div className="grid grid-cols-2 gap-4 p-3 rounded-lg border border-dashed border-white/10 opacity-60 hover:opacity-100 transition-opacity">
                             <Input label="Latitude" name="depLat" value={formData.depLat} onChange={handleChange} required placeholder="39.9042" />
                             <Input label="Longitude" name="depLng" value={formData.depLng} onChange={handleChange} required placeholder="116.4074" />
                         </div>
                     </div>
 
                     {/* Arrival Section */}
-                    <div className="space-y-3">
-                        <h3 className="text-emerald-400 text-xs font-bold uppercase tracking-widest">Arrival</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <Input
-                                label="Airport Code"
-                                name="arrCode"
-                                value={formData.arrCode}
-                                onChange={(e) => handleCodeChange(e, 'arr')}
-                                required placeholder="LHR"
-                                maxLength={3}
-                            />
-                            <Input label="Airport Name" name="arrName" value={formData.arrName} onChange={handleChange} required placeholder="Heathrow" />
+                    <div className="space-y-4">
+                        <h3 className="text-emerald-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2 w-full">
+                            Arrival <span className="h-px bg-emerald-900/50 flex-1"></span>
+                        </h3>
+                        <div className="grid grid-cols-12 gap-4">
+                            <div className="col-span-3">
+                                <Input
+                                    label="Code"
+                                    name="arrCode"
+                                    value={formData.arrCode}
+                                    onChange={(e) => handleCodeChange(e, 'arr')}
+                                    required placeholder="LHR"
+                                    maxLength={3}
+                                />
+                            </div>
+                            <div className="col-span-5">
+                                <Input label="Airport Name" name="arrName" value={formData.arrName} onChange={handleChange} required placeholder="Heathrow" />
+                            </div>
+                            <div className="col-span-4">
+                                <Input label="Country" name="arrCountry" value={formData.arrCountry} onChange={handleChange} placeholder="UK" />
+                            </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 bg-white/5 p-4 rounded-lg border border-white/5 opacity-70 hover:opacity-100 transition-opacity">
+
+                        <div className="grid grid-cols-2 gap-4 p-3 rounded-lg border border-dashed border-white/10 opacity-60 hover:opacity-100 transition-opacity">
                             <Input label="Latitude" name="arrLat" value={formData.arrLat} onChange={handleChange} required placeholder="51.5074" />
                             <Input label="Longitude" name="arrLng" value={formData.arrLng} onChange={handleChange} required placeholder="-0.1278" />
                         </div>
                     </div>
 
                     {/* Meta Section */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <Input label="Date" type="date" name="date" value={formData.date} onChange={handleChange} required />
-                        <Input label="Notes" name="notes" value={formData.notes} onChange={handleChange} placeholder="Business trip..." />
+                    <div className="space-y-4">
+                        <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                            Details <span className="h-px bg-white/10 flex-1"></span>
+                        </h3>
+                        <div className="grid grid-cols-2 gap-4">
+                            <Input label="Date" type="date" name="date" value={formData.date} onChange={handleChange} required />
+                            <Input label="Notes" name="notes" value={formData.notes} onChange={handleChange} placeholder="Business trip..." />
+                        </div>
                     </div>
                 </form>
             </div>
@@ -134,7 +176,7 @@ export default function FlightForm({ onClose, onSubmit, initialData = null }) {
             {/* Footer */}
             <div className="p-5 border-t border-white/10 flex justify-end gap-3 bg-white/5">
                 <button type="button" onClick={onClose} className="px-4 py-2 text-slate-400 hover:text-white text-sm font-medium transition-colors">Cancel</button>
-                <button form="flight-form" type="submit" className="bg-cyan-600/80 hover:bg-cyan-500/80 text-white border border-white/10 rounded px-4 py-2 transition-all shadow-lg shadow-cyan-900/20">
+                <button form="flight-form" type="submit" className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold border border-cyan-400/20 rounded px-6 py-2 transition-all shadow-[0_0_20px_rgba(8,145,178,0.3)] hover:shadow-[0_0_30px_rgba(8,145,178,0.5)]">
                     {initialData ? 'Update Flight' : 'Save Flight'}
                 </button>
             </div>

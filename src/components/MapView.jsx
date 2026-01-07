@@ -51,7 +51,7 @@ function getBearing(startLat, startLng, endLat, endLng) {
     return (toDeg(Math.atan2(y, x)) + 360) % 360;
 }
 
-export default function MapView({ flights = [] }) {
+export default function MapView({ flights = [], onFlightClick }) {
 
     // Filter out invalid flights once
     const validFlights = useMemo(() => {
@@ -166,7 +166,19 @@ export default function MapView({ flights = [] }) {
                                 weight: 2,
                                 opacity: 0.8,
                                 lineCap: 'round',
-                                className: 'flight-path-glow'
+                                className: 'flight-path-glow cursor-pointer hover:stroke-white' // Added cursor pointer
+                            }}
+                            eventHandlers={{
+                                click: (e) => {
+                                    L.DomEvent.stopPropagation(e); // Prevent map click?
+                                    onFlightClick && onFlightClick(validFlights.find(f => (f.id || idx) === p.id));
+                                },
+                                mouseover: (e) => {
+                                    e.target.setStyle({ weight: 4, color: '#fff' });
+                                },
+                                mouseout: (e) => {
+                                    e.target.setStyle({ weight: 2, color: '#22d3ee' });
+                                }
                             }}
                         />
                         <Marker position={p.arrowPos} icon={createArrowIcon(p.arrowAngle)} />

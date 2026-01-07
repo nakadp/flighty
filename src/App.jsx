@@ -142,7 +142,7 @@ function App() {
             onFlightClick={setSelectedFlight}
           />
         ) : (
-          <MapView flights={flights} />
+          <MapView flights={flights} onFlightClick={setSelectedFlight} />
         )}
       </div>
 
@@ -223,8 +223,8 @@ function App() {
 
       {/* MODALS */}
       {showList && (
-        <div className="absolute inset-0 z-50 flex items-center justify-end bg-black/60 backdrop-blur-md">
-          <div className="w-full max-w-md h-full pointer-events-auto">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
+          <div className="w-full max-w-2xl h-full max-h-[85vh] pointer-events-auto">
             <FlightList
               flights={flights}
               onClose={() => setShowList(false)}
@@ -248,12 +248,50 @@ function App() {
       )}
 
       {selectedFlight && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="pointer-events-auto bg-slate-900/90 border border-white/10 rounded-2xl p-6 w-full max-w-sm relative shadow-2xl">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="pointer-events-auto bg-slate-900/95 border border-white/10 rounded-2xl p-8 w-full max-w-md relative shadow-2xl backdrop-blur-xl">
             <button onClick={() => setSelectedFlight(null)} className="absolute top-4 right-4 text-slate-500 hover:text-white"><X size={20} /></button>
-            <div className="text-center">
-              <div className="text-4xl font-black text-white mb-2">{selectedFlight.depCode} <span className="text-cyan-500">✈</span> {selectedFlight.arrCode}</div>
-              <div className="text-sm text-slate-400 mb-4">{formatDistance(calculateDistance(selectedFlight.depLat, selectedFlight.depLng, selectedFlight.arrLat, selectedFlight.arrLng))} km</div>
+            <div className="text-center space-y-4">
+              {/* Airline Logo / Name Placeholder */}
+              {selectedFlight.airline && <div className="text-cyan-400 font-bold uppercase tracking-widest text-sm">{selectedFlight.airline} {selectedFlight.flightNumber}</div>}
+
+              <div className="flex items-center justify-center gap-6">
+                <div className="text-center">
+                  <div className="text-4xl font-black text-white leading-none">{selectedFlight.depCode}</div>
+                  {selectedFlight.depCountry && <div className="text-[10px] text-slate-500 uppercase mt-1">{selectedFlight.depCountry}</div>}
+                </div>
+                <Plane className="text-slate-600 rotate-90" size={24} />
+                <div className="text-center">
+                  <div className="text-4xl font-black text-white leading-none">{selectedFlight.arrCode}</div>
+                  {selectedFlight.arrCountry && <div className="text-[10px] text-slate-500 uppercase mt-1">{selectedFlight.arrCountry}</div>}
+                </div>
+              </div>
+
+              <div className="h-px bg-white/10 w-full"></div>
+
+              <div className="grid grid-cols-2 gap-4 text-left">
+                <div>
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider">Distance</div>
+                  <div className="text-lg font-mono text-white">{formatDistance(calculateDistance(selectedFlight.depLat, selectedFlight.depLng, selectedFlight.arrLat, selectedFlight.arrLng))} km</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider">Date</div>
+                  <div className="text-lg font-mono text-white">{selectedFlight.date}</div>
+                </div>
+                {selectedFlight.aircraft && (
+                  <div className="col-span-2">
+                    <div className="text-[10px] text-slate-500 uppercase tracking-wider">Aircraft</div>
+                    <div className="text-white">{selectedFlight.aircraft}</div>
+                  </div>
+                )}
+                {selectedFlight.notes && (
+                  <div className="col-span-2">
+                    <div className="text-[10px] text-slate-500 uppercase tracking-wider">Notes</div>
+                    <div className="text-slate-400 text-sm italic">{selectedFlight.notes}</div>
+                  </div>
+                )}
+              </div>
+
             </div>
           </div>
         </div>
