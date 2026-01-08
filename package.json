@@ -19,6 +19,7 @@
     "date-fns": "^4.1.0",
     "firebase": "^12.7.0",
     "framer-motion": "^12.24.0",
+    "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
     "leaflet": "^1.9.4",
     "lodash.throttle": "^4.1.1",

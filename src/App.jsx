@@ -7,9 +7,10 @@ import FlightForm from './components/FlightForm';
 import FlightList from './components/FlightList';
 import Login from './components/Login';
 import SettingsModal from './components/SettingsModal';
+import ShareSheet from './components/ShareSheet';
 import { calculateDistance, formatDistance } from './utils/calculations';
 import { useLanguage } from './context/LanguageContext';
-import html2canvas from 'html2canvas';
+import { toPng } from 'html-to-image';
 
 // FIREBASE IMPORTS
 import { auth, db } from './firebase';
@@ -186,52 +187,67 @@ function App() {
     saveSetting('language', newLang);
   };
 
+  // SHARE SHEET STATE
+  const [showShareSheet, setShowShareSheet] = useState(false);
+  const [shareImage, setShareImage] = useState(null);
+
   const handleShare = async () => {
     setSharing(true);
     try {
-      // Capture the map container.
-      // We assume the background div with 'map-container' or just body.
-      // Since map is absolute at z-0, capturing document.body is easiest but might get UI elements.
-      // Best is to capture the map element.
-      // However, for simplicity and ensuring we get the map visual:
-      // Let's hide UI elements temporarily? No, standard screenshot usually wants Flighty stats + map.
-      // User said "Share Flight Route 2D Image". 
-      // If viewMode is 3D, we might want to warn or switch? 
-      // User request: "Share 2D Image". So we should probably capture the MapView.
-
-      const element = document.body; // Capture full screen for now as it looks best with stats
-
-      const canvas = await html2canvas(element, {
-        useCORS: true,
-        ignoreElements: (node) => {
-          // Ignore buttons and overlays if we want clean map key?
-          // Actually user usually wants the stats overlay.
-          // Maybe ignore the right-side buttons to look cleaner.
-          return node.classList && node.classList.contains('share-ignore');
+      // 1. Capture the screenshot first
+      const element = document.body;
+      const dataUrl = await toPng(element, {
+        cacheBust: true,
+        skipFonts: true,
+        filter: (node) => {
+          // Return true to keep the node, false to exclude it
+          return !node.classList || !node.classList.contains('share-ignore');
         }
       });
 
-      const dataUrl = canvas.toDataURL('image/png');
-      const blob = await (await fetch(dataUrl)).blob();
+      setShareImage(dataUrl);
+
+      // 2. Open the Sheet
+      setShowShareSheet(true);
+
+    } catch (error) {
+      console.error("Share capture failed:", error);
+      alert("Share Error: " + error.message);
+    }
+    setSharing(false);
+  };
+
+  const handleSaveImage = () => {
+    if (!shareImage) return;
+    const link = document.createElement('a');
+    link.download = `flight-history-${new Date().toISOString().split('T')[0]}.png`;
+    link.href = shareImage;
+    link.click();
+  };
+
+  const handleNativeShare = async () => {
+    if (!shareImage) return;
+    try {
+      const blob = await (await fetch(shareImage)).blob();
       const file = new File([blob], 'flight-history.png', { type: 'image/png' });
 
       if (navigator.share && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
           title: 'My Flight History',
-          text: 'Check out my flight history!'
+          text: 'Check out my flight history on SkyTrace!',
         });
       } else {
-        // Desktop / Fallback
-        const link = document.createElement('a');
-        link.download = 'flight-history.png';
-        link.href = dataUrl;
-        link.click();
+        alert(t('share_not_supported') || "Sharing is not supported on this device. Please use 'Save Image'.");
       }
-    } catch (error) {
-      console.error("Share failed:", error);
+    } catch (e) {
+      console.error("Native share failed", e);
     }
-    setSharing(false);
+  };
+
+  const handleCopyLink = () => {
+    // Placeholder for actual link logic
+    navigator.clipboard.writeText(window.location.href);
   };
 
   // LOADING STATE
@@ -467,6 +483,16 @@ function App() {
       </div>
 
       {/* MODALS */}
+      <ShareSheet
+        isOpen={showShareSheet}
+        onClose={() => setShowShareSheet(false)}
+        image={shareImage}
+        onSave={handleSaveImage}
+        onShare={handleNativeShare}
+        onCopyLink={handleCopyLink}
+        accentColor={accentColor}
+      />
+
       {showSettings && (
         <SettingsModal
           user={user}

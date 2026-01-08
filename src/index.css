@@ -85,3 +85,52 @@ body {
 .app-region-no-drag {
   -webkit-app-region: no-drag;
 }
+
+/* Share UI Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes zoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+@media (max-width: 768px) {
+  .animate-mobile-sheet {
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+}
+
+@media (min-width: 769px) {
+  .animate-desktop-modal {
+    animation: zoomIn 0.2s ease-out forwards;
+  }
+}
