@@ -11,6 +11,7 @@ import { calculateDistance, formatDistance } from './utils/calculations';
 import { useLanguage } from './context/LanguageContext';
 import { toPng } from 'html-to-image';
 import { THEME_COLORS, getThemeHex } from './utils/theme';
+import StaticMap from './components/StaticMap';
 
 // FIREBASE IMPORTS
 import { auth, db } from './firebase';
@@ -249,34 +250,72 @@ function App() {
     saveSetting('language', newLang);
   };
 
+
+
   // SHARE SHEET STATE
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [shareImage, setShareImage] = useState(null);
+  const [isGeneratingShare, setIsGeneratingShare] = useState(false);
+  // Default to 4K
+  const [exportConfig, setExportConfig] = useState({ width: 3840, height: 2160, lineWidth: 4 });
+  const shareContainerRef = useRef(null);
 
   const handleShare = async () => {
     setSharing(true);
+
+    // Determine resolution based on device
+    const isMobile = window.innerWidth < 768;
+    if (isMobile) {
+      setExportConfig({ width: 1920, height: 1080, lineWidth: 2 });
+    } else {
+      setExportConfig({ width: 3840, height: 2160, lineWidth: 4 });
+    }
+
+    setIsGeneratingShare(true);
+    // The actual capture will be triggered by the onReady callback of StaticMap
+  };
+
+  const handleStaticMapReady = async () => {
     try {
-      // 1. Capture the screenshot first
-      const element = document.body;
-      const dataUrl = await toPng(element, {
-        cacheBust: true,
-        skipFonts: true,
-        filter: (node) => {
-          // Return true to keep the node, false to exclude it
-          return !node.classList || !node.classList.contains('share-ignore');
+      if (shareContainerRef.current) {
+        // Use toBlob for better performance with large images
+        // Add a timeout to prevent infinite hanging
+        const generatePromise = new Promise((resolve, reject) => {
+          import('html-to-image').then(hti => {
+            hti.toBlob(shareContainerRef.current, {
+              width: 3840,
+              height: 2160,
+              cacheBust: true,
+              skipFonts: true,
+              pixelRatio: 1,
+              useCORS: true,
+              allowTaint: true,
+              backgroundColor: '#020617'
+            }).then(resolve).catch(reject);
+          }).catch(reject);
+        });
+
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Timeout generating image")), 20000)
+        );
+
+        const blob = await Promise.race([generatePromise, timeoutPromise]);
+
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          setShareImage(url);
+          setShowShareSheet(true);
+        } else {
+          throw new Error("Failed to generate image blob");
         }
-      });
-
-      setShareImage(dataUrl);
-
-      // 2. Open the Sheet
-      setShowShareSheet(true);
-
+      }
     } catch (error) {
       console.error("Share capture failed:", error);
-      alert("Share Error: " + error.message);
+      alert(t('share_error') || "Error generating image. Please try again.");
+    } finally {
+      setIsGeneratingShare(false);
+      setSharing(false);
     }
-    setSharing(false);
   };
 
   const handleSaveImage = () => {
@@ -290,7 +329,7 @@ function App() {
   const handleNativeShare = async () => {
     if (!shareImage) return;
     try {
-      const blob = await (await fetch(shareImage)).blob();
+      const blob = await (await fetch(shareImage)).blob(); // Fetch the blob from blobURL (efficient)
       const file = new File([blob], 'flight-history.png', { type: 'image/png' });
 
       if (navigator.share && navigator.canShare({ files: [file] })) {
@@ -665,6 +704,34 @@ function App() {
 
             </div>
           </div>
+        </div>
+      )}
+
+      {/* OFF-SCREEN STATIC MAP RENDERER */}
+      {isGeneratingShare && (
+        <div
+          ref={shareContainerRef}
+          style={{
+            position: 'fixed',
+            top: '0',
+            left: '0', // Render on screen but behind? Or way off?
+            // toPng/toBlob sometimes fails if completely off-screen or display:none.
+            // Safest is z-index: -1000 with opacity 0? 
+            // BUT html-to-image needs visibility.
+            // Let's try placing it at top/left but z-index -1000.  
+            zIndex: -1000,
+            width: '3840px',
+            height: '2160px',
+            visibility: 'visible' // Required for capture
+          }}
+        >
+          <StaticMap
+            flights={flights} // Pass all flights, independent of current filter? User said "all user's flight routes".
+            // In App.jsx 'flights' is the current filtered list IF there was filtering, but currently we only query all flights for user.
+            // So passed 'flights' is correct.
+            accentColor={accentColor}
+            onReady={handleStaticMapReady}
+          />
         </div>
       )}
 

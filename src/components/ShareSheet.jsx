@@ -52,7 +52,7 @@ const ShareSheet = ({
                 <div className="flex flex-col md:flex-row gap-6 md:gap-8">
 
                     {/* Preview Image */}
-                    <div className="w-full md:w-1/2 aspect-video md:aspect-[4/3] bg-black rounded-xl overflow-hidden border border-white/10 relative group">
+                    <div className="w-full md:w-1/2 aspect-video bg-black rounded-xl overflow-hidden border border-white/10 relative group">
                         {image ? (
                             <img src={image} alt="Preview" className="w-full h-full object-cover" />
                         ) : (
