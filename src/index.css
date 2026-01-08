@@ -6,7 +6,7 @@
 }
 
 .flight-path-glow {
-  filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.6));
+  filter: drop-shadow(0 0 4px var(--accent-color, #22d3ee));
 }
 
 .custom-icon {
@@ -133,4 +133,18 @@ body {
   .animate-desktop-modal {
     animation: zoomIn 0.2s ease-out forwards;
   }
+}
+
+/* Dynamic Hover Class */
+.hover-accent-btn {
+  background-color: transparent;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: white;
+  transition: all 0.2s;
+}
+
+.hover-accent-btn:hover {
+  background-color: rgba(var(--accent-rgb), 0.2);
+  border-color: rgba(var(--accent-rgb), 0.5);
+  color: var(--accent-color);
 }

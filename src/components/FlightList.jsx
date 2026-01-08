@@ -208,7 +208,7 @@ export default function FlightList({ flights, trips = [], currency = 'USD', onCl
                 <div className="p-4 border-b border-white/10 space-y-4 bg-white/5">
                     <div className="flex justify-between items-center">
                         <h2 className="text-base font-bold text-white flex items-center gap-2">
-                            <Layers className="text-cyan-400" size={18} />
+                            <Layers className={`text-${accentColor}-400`} size={18} />
                             Flight Log
                         </h2>
                         <div className="flex items-center gap-2">
@@ -227,12 +227,12 @@ export default function FlightList({ flights, trips = [], currency = 'USD', onCl
                     </div>
 
                     <div className="flex flex-col md:flex-row gap-2">
-                        <select value={filterYear} onChange={(e) => setFilterYear(e.target.value)} className="bg-black/50 border border-white/10 text-xs text-white rounded px-2 py-1.5 focus:outline-none focus:border-cyan-500 w-full md:w-auto">
+                        <select value={filterYear} onChange={(e) => setFilterYear(e.target.value)} className={`bg-black/50 border border-white/10 text-xs text-white rounded px-2 py-1.5 focus:outline-none focus:border-${accentColor}-500 w-full md:w-auto`}>
                             <option value="All">All Years</option>
                             {years.map(y => <option key={y} value={y}>{y}</option>)}
                         </select>
 
-                        <select value={filterCountry} onChange={(e) => setFilterCountry(e.target.value)} className="bg-black/50 border border-white/10 text-xs text-white rounded px-2 py-1.5 focus:outline-none focus:border-cyan-500 w-full md:w-auto md:max-w-[150px]">
+                        <select value={filterCountry} onChange={(e) => setFilterCountry(e.target.value)} className={`bg-black/50 border border-white/10 text-xs text-white rounded px-2 py-1.5 focus:outline-none focus:border-${accentColor}-500 w-full md:w-auto md:max-w-[150px]`}>
                             <option value="All">All Countries</option>
                             {countries.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
@@ -240,7 +240,7 @@ export default function FlightList({ flights, trips = [], currency = 'USD', onCl
 
                     <div className="flex flex-wrap gap-4 text-[10px] uppercase tracking-wider text-slate-400 font-mono">
                         <div><span className="text-white font-bold">{stats.count}</span> Flights</div>
-                        <div><span className="text-cyan-400 font-bold">{formatDistance(stats.distance)}</span> km</div>
+                        <div><span className={`text-${accentColor}-400 font-bold`}>{formatDistance(stats.distance)}</span> km</div>
                         <div><span className="text-white font-bold">{stats.countries}</span> Countries</div>
                     </div>
                 </div>
@@ -262,7 +262,7 @@ export default function FlightList({ flights, trips = [], currency = 'USD', onCl
                                         {/* Trip Header */}
                                         <div className="flex justify-between items-center mb-2 px-1">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-1 h-1 rounded-full bg-cyan-400"></div>
+                                                <div className={`w-1 h-1 rounded-full bg-${accentColor}-400`}></div>
                                                 <div className="text-sm font-bold text-white uppercase tracking-wider">{trip.name || 'Untitled Trip'}</div>
                                                 <div className="text-[10px] text-slate-500 bg-white/5 px-1.5 py-0.5 rounded border border-white/5">{trip.type}</div>
                                             </div>
@@ -284,7 +284,7 @@ export default function FlightList({ flights, trips = [], currency = 'USD', onCl
                                         {/* Trip Flights (Indented) */}
                                         <div className="pl-4 border-l-2 border-white/5 ml-1.5 space-y-2">
                                             {item.flights.map(flight => (
-                                                <FlightCard key={flight.id} flight={flight} onDelete={onDelete} onEdit={onEdit} isTripChild />
+                                                <FlightCard key={flight.id} flight={flight} onDelete={onDelete} onEdit={onEdit} isTripChild accentColor={accentColor} />
                                             ))}
                                             {item.flights.length === 0 && (
                                                 <div className="text-[10px] text-slate-600 italic py-1">No flights in this trip</div>
@@ -294,7 +294,7 @@ export default function FlightList({ flights, trips = [], currency = 'USD', onCl
                                 )
                             } else {
                                 // Orphan Flight
-                                return <FlightCard key={item.data.id} flight={item.data} onDelete={onDelete} onEdit={onEdit} />
+                                return <FlightCard key={item.data.id} flight={item.data} onDelete={onDelete} onEdit={onEdit} accentColor={accentColor} />
                             }
                         })
                     )}
@@ -304,9 +304,9 @@ export default function FlightList({ flights, trips = [], currency = 'USD', onCl
     );
 }
 
-function FlightCard({ flight, onDelete, onEdit, isTripChild }) {
+function FlightCard({ flight, onDelete, onEdit, isTripChild, accentColor = 'cyan' }) {
     return (
-        <div className={`bg-white/5 border border-white/5 hover:border-cyan-500/30 rounded-lg p-3 transition-all group relative ${isTripChild ? 'bg-white/[0.02]' : ''}`}>
+        <div className={`bg-white/5 border border-white/5 hover:border-${accentColor}-500/30 rounded-lg p-3 transition-all group relative ${isTripChild ? 'bg-white/[0.02]' : ''}`}>
             <div className="flex justify-between items-center mb-1">
                 <div className="flex items-center gap-3">
                     <div className="text-lg font-black text-white w-10 text-center">{flight.depCode}</div>
@@ -322,7 +322,7 @@ function FlightCard({ flight, onDelete, onEdit, isTripChild }) {
                 <div className="flex flex-col gap-0.5">
                     <div className="flex items-center gap-2 text-[10px] text-slate-400">
                         <span className="flex items-center gap-1"><Calendar size={10} /> {flight.date}</span>
-                        {flight.airline && <span className="text-cyan-400/80 font-bold">{flight.airline}</span>}
+                        {flight.airline && <span className={`text-${accentColor}-400/80 font-bold`}>{flight.airline}</span>}
                     </div>
                 </div>
             </div>
@@ -337,7 +337,7 @@ function FlightCard({ flight, onDelete, onEdit, isTripChild }) {
                 {/* For editing, we click the whole card or specific button? Let's use button. 
                     If is Trip Child, onEdit needs to open Trip Form? 
                     The parent passed onEdit which handles switching to Trip Edit mode. */}
-                <button onClick={() => onEdit(flight)} className="p-1 bg-cyan-500/10 text-cyan-400 rounded hover:bg-cyan-500 hover:text-white transition-colors">
+                <button onClick={() => onEdit(flight)} className={`p-1 bg-${accentColor}-500/10 text-${accentColor}-400 rounded hover:bg-${accentColor}-500 hover:text-white transition-colors`}>
                     <Edit2 size={12} />
                 </button>
             </div>

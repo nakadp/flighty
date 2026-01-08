@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Plus, X, Plane, Calendar, MapPin, Settings, Share2, Globe, Map as MapIcon, List as ListIcon, LogOut, Check, Download, Link } from 'lucide-react';
 import GlobeView from './components/GlobeView';
@@ -11,6 +10,7 @@ import ShareSheet from './components/ShareSheet';
 import { calculateDistance, formatDistance } from './utils/calculations';
 import { useLanguage } from './context/LanguageContext';
 import { toPng } from 'html-to-image';
+import { THEME_COLORS, getThemeHex } from './utils/theme';
 
 // FIREBASE IMPORTS
 import { auth, db } from './firebase';
@@ -47,6 +47,22 @@ function App() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // UPDATE CSS VARIABLE FOR THEME
+  useEffect(() => {
+    const hex = getThemeHex(accentColor, 500);
+    const hex400 = getThemeHex(accentColor, 400); // For text/glow
+
+    document.documentElement.style.setProperty('--accent-color', hex400);
+    document.documentElement.style.setProperty('--accent-color-hex', hex);
+
+    // Convert hex to rgb for rgba usage
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    document.documentElement.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`);
+
+  }, [accentColor]);
 
   // Stats Memo
   const stats = useMemo(() => {
@@ -439,9 +455,14 @@ function App() {
             width={dimensions.width}
             height={dimensions.height}
             onFlightClick={setSelectedFlight}
+            accentColor={accentColor}
           />
         ) : (
-          <MapView flights={flights} onFlightClick={setSelectedFlight} />
+          <MapView
+            flights={flights}
+            onFlightClick={setSelectedFlight}
+            accentColor={accentColor}
+          />
         )}
       </div>
 
@@ -497,7 +518,7 @@ function App() {
         {/* SHARE BUTTON */}
         <button
           onClick={handleShare}
-          className={`w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-${accentColor}-500/20 hover:border-${accentColor}-400/50 hover:${getAccentText()} transition-all shadow-lg group relative`}
+          className={`w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover-accent-btn transition-all shadow-lg group relative`}
         >
           {sharing ? <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/50 border-t-white"></div> : <Share2 size={20} />}
           <span className="absolute right-14 bg-black/80 px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{t('share') || "Share"}</span>
@@ -505,7 +526,7 @@ function App() {
 
         <button
           onClick={() => handleSetViewMode(viewMode === '3D' ? '2D' : '3D')}
-          className={`w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-${accentColor}-500/20 hover:border-${accentColor}-400/50 hover:${getAccentText()} transition-all shadow-lg group relative`}
+          className={`w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover-accent-btn transition-all shadow-lg group relative`}
         >
           <MapIcon size={20} className={viewMode === '3D' ? 'block' : 'hidden'} />
           <Globe size={20} className={viewMode === '2D' ? 'block' : 'hidden'} />
@@ -514,7 +535,7 @@ function App() {
 
         <button
           onClick={() => setShowList(true)}
-          className={`w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-${accentColor}-500/20 hover:border-${accentColor}-400/50 hover:${getAccentText()} transition-all shadow-lg group relative`}
+          className={`w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover-accent-btn transition-all shadow-lg group relative`}
         >
           <ListIcon size={20} />
           <span className="absolute right-14 bg-black/80 px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{t('flight_history')}</span>
@@ -522,7 +543,7 @@ function App() {
 
         <button
           onClick={() => setShowSettings(true)}
-          className={`w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-${accentColor}-500/20 hover:border-${accentColor}-400/50 hover:${getAccentText()} transition-all shadow-lg group relative`}
+          className={`w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover-accent-btn transition-all shadow-lg group relative`}
         >
           <Settings size={20} />
           <span className="absolute right-14 bg-black/80 px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{t('settings')}</span>
@@ -577,6 +598,7 @@ function App() {
               onDeleteTrip={handleDeleteTrip}
               onEdit={handleEditFlight}
               onExportData={handleExportData}
+              accentColor={accentColor}
             />
           </div>
         </div>
@@ -591,6 +613,7 @@ function App() {
               existingFlights={flights}
               onClose={handleCloseForm}
               onSubmit={handleSaveTrip}
+              accentColor={accentColor}
             />
           </div>
         </div>

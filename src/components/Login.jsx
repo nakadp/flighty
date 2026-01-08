@@ -8,7 +8,7 @@ import { auth, googleProvider } from "../firebase";
 import { Plane, Mail, User, Lock, ArrowRight } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
-export default function Login() {
+export default function Login({ accentColor = 'cyan' }) {
     const [isSignUp, setIsSignUp] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -91,14 +91,14 @@ export default function Login() {
             <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/80 z-0"></div>
 
             {/* Login Card */}
-            <div className="glass-panel z-10 w-full max-w-md p-8 rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(34,211,238,0.1)] flex flex-col items-center text-center animate-in zoom-in-95 duration-500 bg-black/40 backdrop-blur-xl">
+            <div className={`glass-panel z-10 w-full max-w-md p-8 rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(34,211,238,0.1)] flex flex-col items-center text-center animate-in zoom-in-95 duration-500 bg-black/40 backdrop-blur-xl shadow-${accentColor}-500/10`}>
 
-                <div className="w-20 h-20 rounded-full bg-cyan-500/10 border border-cyan-400/30 flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(34,211,238,0.3)]">
-                    <Plane className="text-cyan-400 rotate-45" size={40} />
+                <div className={`w-20 h-20 rounded-full bg-${accentColor}-500/10 border border-${accentColor}-400/30 flex items-center justify-center mb-6 shadow-[0_0_20px_var(--accent-color-hex)]`}>
+                    <Plane className={`text-${accentColor}-400 rotate-45`} size={40} />
                 </div>
 
-                <h1 className="text-3xl font-black text-cyan-400 mb-2 tracking-tight">SKYTRACE</h1>
-                <p className="text-slate-400 mb-8 text-sm uppercase tracking-widest">Your Personal Flight History, Synced Forever.</p>
+                <h1 className={`text-3xl font-black text-${accentColor}-400 mb-2 tracking-tight`}>SKYTRACE</h1>
+                <p className="text-slate-400 mb-8 text-sm uppercase tracking-widest">Your Flight History, Visualize Your World.</p>
 
                 {error && (
                     <div className="w-full bg-red-500/20 border border-red-500/50 text-red-200 p-3 rounded-lg text-sm mb-4">
@@ -113,7 +113,7 @@ export default function Login() {
                         <input
                             type="email"
                             placeholder="Email address"
-                            className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all"
+                            className={`w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:border-${accentColor}-500/50 focus:ring-1 focus:ring-${accentColor}-500/50 transition-all`}
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
@@ -124,7 +124,7 @@ export default function Login() {
                         <input
                             type="password"
                             placeholder="Password"
-                            className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all"
+                            className={`w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:border-${accentColor}-500/50 focus:ring-1 focus:ring-${accentColor}-500/50 transition-all`}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
@@ -134,7 +134,7 @@ export default function Login() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-3 px-6 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-cyan-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className={`w-full py-3 px-6 bg-${accentColor}-600 hover:bg-${accentColor}-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-${accentColor}-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
                     >
                         {loading ? 'Processing...' : (isSignUp ? 'Create Account' : 'Sign In')}
                         {!loading && <ArrowRight size={18} />}
@@ -144,7 +144,7 @@ export default function Login() {
                         <button
                             type="button"
                             onClick={() => setIsSignUp(!isSignUp)}
-                            className="text-xs text-slate-400 hover:text-cyan-400 transition-colors"
+                            className={`text-xs text-slate-400 hover:text-${accentColor}-400 transition-colors`}
                         >
                             {isSignUp ? 'Already have an account? Sign In' : 'New here? Create Account'}
                         </button>
@@ -164,7 +164,7 @@ export default function Login() {
                     <button
                         onClick={handleGoogleLogin}
                         disabled={loading}
-                        className="py-2.5 px-4 bg-white text-black font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-cyan-50 transition-all disabled:opacity-50"
+                        className={`py-2.5 px-4 bg-white text-black font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-${accentColor}-50 transition-all disabled:opacity-50`}
                     >
                         <svg className="w-4 h-4" viewBox="0 0 24 24">
                             <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />

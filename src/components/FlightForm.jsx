@@ -5,7 +5,7 @@ import { useLanguage } from '../context/LanguageContext';
 
 import { calculateDistance } from '../utils/calculations';
 
-export default function FlightForm({ onClose, onSubmit, initialTrip = null, initialData = null, existingFlights = [] }) {
+export default function FlightForm({ onClose, onSubmit, initialTrip = null, initialData = null, existingFlights = [], accentColor = 'cyan' }) {
     const { t, language } = useLanguage();
 
     // Mode: 'TRIP' (Overview) or 'FLIGHT' (Editing a specific segment)
@@ -169,12 +169,12 @@ export default function FlightForm({ onClose, onSubmit, initialTrip = null, init
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
                     {view === 'TRIP' ? (
                         <>
-                            <Plane className="text-cyan-400" size={20} />
+                            <Plane className={`text-${accentColor}-400`} size={20} />
                             {initialTrip ? 'Edit Trip' : 'Create New Trip'}
                         </>
                     ) : (
                         <>
-                            <button onClick={() => setView('TRIP')} className="hover:text-cyan-400 flex items-center gap-1 text-slate-400 text-sm mr-2 transition-colors">
+                            <button onClick={() => setView('TRIP')} className={`hover:text-${accentColor}-400 flex items-center gap-1 text-slate-400 text-sm mr-2 transition-colors`}>
                                 <ChevronRight className="rotate-180" size={16} /> Back
                             </button>
                             <span>{editingSegmentId ? 'Edit Flight' : 'Add Flight Segment'}</span>
@@ -198,17 +198,17 @@ export default function FlightForm({ onClose, onSubmit, initialTrip = null, init
                                 Trip Details <span className="h-px bg-white/10 flex-1"></span>
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <Input label="Trip Name (Optional)" name="name" value={tripData.name} onChange={handleTripChange} placeholder="e.g. Summer Vacation 2024" autoFocus />
+                                <Input label="Trip Name (Optional)" name="name" value={tripData.name} onChange={handleTripChange} placeholder="e.g. Summer Vacation 2024" autoFocus accentColor={accentColor} />
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="flex flex-col gap-1.5">
                                         <label className="text-[10px] text-slate-400 font-bold uppercase ml-1">Type</label>
-                                        <select name="type" value={tripData.type} onChange={handleTripChange} className="bg-black/50 border border-white/20 text-white rounded px-3 py-2 w-full focus:outline-none focus:border-cyan-400 text-sm h-[38px]">
+                                        <select name="type" value={tripData.type} onChange={handleTripChange} className={`bg-black/50 border border-white/20 text-white rounded px-3 py-2 w-full focus:outline-none focus:border-${accentColor}-400 text-sm h-[38px]`}>
                                             <option value="OneWay">One Way</option>
                                             <option value="RoundTrip">Round Trip</option>
                                             <option value="MultiCity">Multi-City</option>
                                         </select>
                                     </div>
-                                    <Input label="Total Cost" name="cost" type="number" value={tripData.cost} onChange={handleTripChange} placeholder="0.00" icon={<DollarSign size={12} />} />
+                                    <Input label="Total Cost" name="cost" type="number" value={tripData.cost} onChange={handleTripChange} placeholder="0.00" icon={<DollarSign size={12} />} accentColor={accentColor} />
                                 </div>
                             </div>
                         </div>
@@ -216,10 +216,10 @@ export default function FlightForm({ onClose, onSubmit, initialTrip = null, init
                         {/* Segments List */}
                         <div className="space-y-4">
                             <div className="flex justify-between items-end">
-                                <h3 className="text-cyan-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                                <h3 className={`text-${accentColor}-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2`}>
                                     Flight Segments <span className="text-slate-500">({segments.length})</span>
                                 </h3>
-                                <button type="button" onClick={startAddSegment} className="text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 px-3 py-1.5 rounded hover:bg-cyan-500 hover:text-white transition-all flex items-center gap-1">
+                                <button type="button" onClick={startAddSegment} className={`text-xs bg-${accentColor}-500/10 text-${accentColor}-400 border border-${accentColor}-500/30 px-3 py-1.5 rounded hover:bg-${accentColor}-500 hover:text-white transition-all flex items-center gap-1`}>
                                     <Plus size={14} /> Add Flight
                                 </button>
                             </div>
@@ -229,11 +229,11 @@ export default function FlightForm({ onClose, onSubmit, initialTrip = null, init
                                     <div className="border border-dashed border-white/10 rounded-xl p-8 text-center text-slate-500 flex flex-col items-center justify-center gap-3">
                                         <Plane className="text-slate-700" size={32} />
                                         <p className="text-sm">No flights added to this trip yet.</p>
-                                        <button onClick={startAddSegment} className="text-cyan-400 hover:underline text-sm">Add your first flight</button>
+                                        <button onClick={startAddSegment} className={`text-${accentColor}-400 hover:underline text-sm`}>Add your first flight</button>
                                     </div>
                                 ) : (
                                     segments.map((seg, idx) => (
-                                        <div key={seg.id || idx} className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:border-cyan-500/30 transition-colors">
+                                        <div key={seg.id || idx} className={`bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between group hover:border-${accentColor}-500/30 transition-colors`}>
                                             <div className="flex items-center gap-4">
                                                 <div className="flex flex-col items-center w-10">
                                                     <span className="text-xs text-slate-500 mb-1">DEP</span>
@@ -252,7 +252,7 @@ export default function FlightForm({ onClose, onSubmit, initialTrip = null, init
                                             </div>
 
                                             <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button onClick={() => startEditSegment(seg)} className="p-2 bg-black/50 rounded hover:bg-cyan-600 text-slate-400 hover:text-white transition-colors"><Edit2 size={14} /></button>
+                                                <button onClick={() => startEditSegment(seg)} className={`p-2 bg-black/50 rounded hover:bg-${accentColor}-600 text-slate-400 hover:text-white transition-colors`}><Edit2 size={14} /></button>
                                                 <button onClick={() => deleteSegment(seg.id)} className="p-2 bg-black/50 rounded hover:bg-red-600 text-slate-400 hover:text-white transition-colors"><Trash2 size={14} /></button>
                                             </div>
                                         </div>
@@ -268,18 +268,18 @@ export default function FlightForm({ onClose, onSubmit, initialTrip = null, init
                     <form id="segment-form" onSubmit={saveSegment} className="space-y-6 animate-in slide-in-from-right-4 duration-300">
                         {/* Departure */}
                         <div className="space-y-4">
-                            <h3 className="text-cyan-400 text-xs font-bold uppercase tracking-widest border-b border-cyan-900/50 pb-2">Departure</h3>
+                            <h3 className={`text-${accentColor}-400 text-xs font-bold uppercase tracking-widest border-b border-${accentColor}-900/50 pb-2`}>Departure</h3>
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                                 <div className="md:col-span-3">
-                                    <Input label="Code" name="depCode" value={segmentForm.depCode} onChange={(e) => handleCodeChange(e, 'dep')} required placeholder="PEK" maxLength={3} autoFocus />
+                                    <Input label="Code" name="depCode" value={segmentForm.depCode} onChange={(e) => handleCodeChange(e, 'dep')} required placeholder="PEK" maxLength={3} autoFocus accentColor={accentColor} />
                                 </div>
                                 <div className="md:col-span-9">
-                                    <Input label="Airport Name" name="depName" value={segmentForm.depName} onChange={handleSegmentChange} required placeholder="Beijing Capital" />
+                                    <Input label="Airport Name" name="depName" value={segmentForm.depName} onChange={handleSegmentChange} required placeholder="Beijing Capital" accentColor={accentColor} />
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
-                                <Input label="Latitude" name="depLat" value={segmentForm.depLat} onChange={handleSegmentChange} required />
-                                <Input label="Longitude" name="depLng" value={segmentForm.depLng} onChange={handleSegmentChange} required />
+                                <Input label="Latitude" name="depLat" value={segmentForm.depLat} onChange={handleSegmentChange} required accentColor={accentColor} />
+                                <Input label="Longitude" name="depLng" value={segmentForm.depLng} onChange={handleSegmentChange} required accentColor={accentColor} />
                             </div>
                         </div>
 
@@ -288,15 +288,15 @@ export default function FlightForm({ onClose, onSubmit, initialTrip = null, init
                             <h3 className="text-emerald-400 text-xs font-bold uppercase tracking-widest border-b border-emerald-900/50 pb-2">Arrival</h3>
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                                 <div className="md:col-span-3">
-                                    <Input label="Code" name="arrCode" value={segmentForm.arrCode} onChange={(e) => handleCodeChange(e, 'arr')} required placeholder="LHR" maxLength={3} />
+                                    <Input label="Code" name="arrCode" value={segmentForm.arrCode} onChange={(e) => handleCodeChange(e, 'arr')} required placeholder="LHR" maxLength={3} accentColor={accentColor} />
                                 </div>
                                 <div className="md:col-span-9">
-                                    <Input label="Airport Name" name="arrName" value={segmentForm.arrName} onChange={handleSegmentChange} required placeholder="Heathrow" />
+                                    <Input label="Airport Name" name="arrName" value={segmentForm.arrName} onChange={handleSegmentChange} required placeholder="Heathrow" accentColor={accentColor} />
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
-                                <Input label="Latitude" name="arrLat" value={segmentForm.arrLat} onChange={handleSegmentChange} required />
-                                <Input label="Longitude" name="arrLng" value={segmentForm.arrLng} onChange={handleSegmentChange} required />
+                                <Input label="Latitude" name="arrLat" value={segmentForm.arrLat} onChange={handleSegmentChange} required accentColor={accentColor} />
+                                <Input label="Longitude" name="arrLng" value={segmentForm.arrLng} onChange={handleSegmentChange} required accentColor={accentColor} />
                             </div>
                         </div>
 
@@ -304,10 +304,10 @@ export default function FlightForm({ onClose, onSubmit, initialTrip = null, init
                         <div className="space-y-4">
                             <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest border-b border-white/10 pb-2">Flight Info</h3>
                             <div className="grid grid-cols-2 gap-4">
-                                <Input label="Date" type="date" name="date" value={segmentForm.date} onChange={handleSegmentChange} required lang={language} />
-                                <Input label="Airline (Opt)" name="airline" value={segmentForm.airline} onChange={handleSegmentChange} placeholder="Delta" />
-                                <Input label="Flight No." name="flightNumber" value={segmentForm.flightNumber} onChange={handleSegmentChange} placeholder="DL123" />
-                                <Input label="Aircraft" name="aircraft" value={segmentForm.aircraft} onChange={handleSegmentChange} placeholder="A350" />
+                                <Input label="Date" type="date" name="date" value={segmentForm.date} onChange={handleSegmentChange} required lang={language} accentColor={accentColor} />
+                                <Input label="Airline (Opt)" name="airline" value={segmentForm.airline} onChange={handleSegmentChange} placeholder="Delta" accentColor={accentColor} />
+                                <Input label="Flight No." name="flightNumber" value={segmentForm.flightNumber} onChange={handleSegmentChange} placeholder="DL123" accentColor={accentColor} />
+                                <Input label="Aircraft" name="aircraft" value={segmentForm.aircraft} onChange={handleSegmentChange} placeholder="A350" accentColor={accentColor} />
                             </div>
                             <div className="p-3 bg-white/5 rounded text-xs text-slate-400 italic">
                                 Note: Flight-specific costs can be 0 if you set a Total Trip Cost.
@@ -323,7 +323,7 @@ export default function FlightForm({ onClose, onSubmit, initialTrip = null, init
                 {view === 'TRIP' ? (
                     <>
                         <button type="button" onClick={onClose} className="px-4 py-2 text-slate-400 hover:text-white text-sm font-medium transition-colors">{t('cancel')}</button>
-                        <button onClick={handleSaveTrip} className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold border border-cyan-400/20 rounded px-6 py-2 transition-all shadow-[0_0_20px_rgba(8,145,178,0.3)] hover:shadow-[0_0_30px_rgba(8,145,178,0.5)]">
+                        <button onClick={handleSaveTrip} className={`bg-${accentColor}-600 hover:bg-${accentColor}-500 text-white font-bold border border-${accentColor}-400/20 rounded px-6 py-2 transition-all shadow-[0_0_20px_var(--accent-color-hex)] hover:shadow-[0_0_30px_var(--accent-color-hex)]`}>
                             {initialTrip ? 'Update Trip' : 'Save Trip'}
                         </button>
                     </>
@@ -340,14 +340,14 @@ export default function FlightForm({ onClose, onSubmit, initialTrip = null, init
     );
 }
 
-function Input({ label, type = "text", icon, ...props }) {
+function Input({ label, type = "text", icon, accentColor = 'cyan', ...props }) {
     return (
         <div className="flex flex-col gap-1.5 w-full">
             <label className="text-[10px] text-slate-400 font-bold uppercase ml-1">{label}</label>
             <div className="relative">
                 <input
                     type={type}
-                    className={`bg-black/50 border border-white/20 text-white rounded px-3 py-2 w-full focus:outline-none focus:border-cyan-400 transition-colors placeholder-slate-600 font-sans text-sm ${icon ? 'pl-8' : ''}`}
+                    className={`bg-black/50 border border-white/20 text-white rounded px-3 py-2 w-full focus:outline-none focus:border-${accentColor}-400 transition-colors placeholder-slate-600 font-sans text-sm ${icon ? 'pl-8' : ''}`}
                     {...props}
                 />
                 {icon && <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500">{icon}</div>}

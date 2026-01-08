@@ -5,14 +5,18 @@ import { COUNTRIES } from '../data/countries';
 import { CITIES } from '../data/cities';
 import * as THREE from 'three';
 import throttle from 'lodash.throttle';
+import { getThemeHex } from '../utils/theme';
 
-export default function GlobeView({ flights = [], width, height, onFlightClick }) {
+export default function GlobeView({ flights = [], width, height, onFlightClick, accentColor = 'cyan' }) {
     const globeEl = useRef();
     const [countries, setCountries] = useState({ features: [] });
     const [altitude, setAltitude] = useState(2.5);
     const [hoverArc, setHoverArc] = useState(null);
     const [globeMode, setGlobeMode] = useState('satellite');
     const [isRotating, setIsRotating] = useState(false);
+
+    // Get hex for accent color
+    const accentHex = getThemeHex(accentColor, 400); // Brighter key color for paths
 
     useEffect(() => {
         if (globeEl.current) {
@@ -97,11 +101,11 @@ export default function GlobeView({ flights = [], width, height, onFlightClick }
                 startLng: f.depLng,
                 endLat: f.arrLat,
                 endLng: f.arrLng,
-                color: ['#f59e0b', '#22d3ee'],
+                color: ['#f59e0b', accentHex], // Start Orange, End Accent
                 alt: 0.25 + altitudeOffset,
             };
         });
-    }, [flights]);
+    }, [flights, accentHex]);
 
     const isZoomedIn = altitude < 1.5;
     const visibleCountries = useMemo(() => countries.features || [], [countries]);
@@ -162,7 +166,7 @@ export default function GlobeView({ flights = [], width, height, onFlightClick }
                 polygonSideColor={() => 'rgba(0,0,0,0)'}
                 polygonStrokeColor={() => {
                     return globeMode === 'abstract'
-                        ? 'rgba(6, 182, 212, 0.8)'
+                        ? `${accentHex}CC` // Add opacity to hex
                         : 'rgba(255, 255, 255, 0.6)';
                 }}
 
@@ -194,7 +198,7 @@ export default function GlobeView({ flights = [], width, height, onFlightClick }
                 labelAltitude={0.015} // Adjusted to sit just above new border height
                 labelTransitionDuration={0}
 
-                atmosphereColor="#3b82f6"
+                atmosphereColor={accentHex}
                 atmosphereAltitude={0.15}
             />
 

@@ -2,22 +2,21 @@ import React, { useMemo } from 'react';
 import { MapContainer, TileLayer, Polyline, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { getThemeHex } from '../utils/theme';
 
-const createGlowingIcon = () => {
+const createGlowingIcon = (colorHex) => {
     return L.divIcon({
         className: 'custom-icon',
-        html: `<div class="w-3 h-3 bg-cyan-400 rounded-full shadow-[0_0_10px_#22d3ee] border-2 border-white relative"></div>`,
+        html: `<div class="w-3 h-3 rounded-full border-2 border-white relative" style="background-color: ${colorHex}; box-shadow: 0 0 10px ${colorHex};"></div>`,
         iconSize: [12, 12],
         iconAnchor: [6, 6]
     });
 };
 
-const GlowingIcon = createGlowingIcon();
-
-const createArrowIcon = (arrowAngle) => {
+const createArrowIcon = (arrowAngle, colorHex) => {
     return L.divIcon({
         className: 'arrow-icon',
-        html: `<div style="transform: rotate(${arrowAngle}deg); color: #22d3ee;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>`,
+        html: `<div style="transform: rotate(${arrowAngle}deg); color: ${colorHex};"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>`,
         iconSize: [16, 16],
         iconAnchor: [8, 8]
     });
@@ -51,7 +50,10 @@ function getBearing(startLat, startLng, endLat, endLng) {
     return (toDeg(Math.atan2(y, x)) + 360) % 360;
 }
 
-export default function MapView({ flights = [], onFlightClick }) {
+export default function MapView({ flights = [], onFlightClick, accentColor = 'cyan' }) {
+
+    // Get dynamic hex
+    const accentHex = getThemeHex(accentColor, 400);
 
     // Filter out invalid flights once
     const validFlights = useMemo(() => {
@@ -70,6 +72,9 @@ export default function MapView({ flights = [], onFlightClick }) {
         });
         return Array.from(airports.values());
     }, [validFlights]);
+
+    // Create Icon for this render
+    const glowingIcon = useMemo(() => createGlowingIcon(accentHex), [accentHex]);
 
     const flightPaths = useMemo(() => {
         const routeCounts = {};
@@ -172,7 +177,7 @@ export default function MapView({ flights = [], onFlightClick }) {
                         <Polyline
                             positions={p.positions}
                             pathOptions={{
-                                color: '#22d3ee',
+                                color: accentHex,
                                 weight: 2,
                                 opacity: 0.8,
                                 lineCap: 'round',
@@ -187,16 +192,16 @@ export default function MapView({ flights = [], onFlightClick }) {
                                     e.target.setStyle({ weight: 4, color: '#fff' });
                                 },
                                 mouseout: (e) => {
-                                    e.target.setStyle({ weight: 2, color: '#22d3ee' });
+                                    e.target.setStyle({ weight: 2, color: accentHex });
                                 }
                             }}
                         />
-                        <Marker position={p.arrowPos} icon={createArrowIcon(p.arrowAngle)} />
+                        <Marker position={p.arrowPos} icon={createArrowIcon(p.arrowAngle, accentHex)} />
                     </React.Fragment>
                 ))}
 
                 {uniqueAirports.map(airport => (
-                    <Marker key={airport.code} position={[airport.lat, airport.lng]} icon={GlowingIcon}>
+                    <Marker key={airport.code} position={[airport.lat, airport.lng]} icon={glowingIcon}>
                         <Popup className="glass-popup"><div className="text-xs font-bold">{airport.code}</div></Popup>
                     </Marker>
                 ))}
