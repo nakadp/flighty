@@ -3,6 +3,8 @@ import { X, Plane, Plus, Trash2, Edit2, ChevronRight, Calendar, DollarSign } fro
 import { AIRPORTS } from '../data/airports';
 import { useLanguage } from '../context/LanguageContext';
 
+import { calculateDistance } from '../utils/calculations';
+
 export default function FlightForm({ onClose, onSubmit, initialTrip = null, initialData = null, existingFlights = [] }) {
     const { t, language } = useLanguage();
 
@@ -121,22 +123,36 @@ export default function FlightForm({ onClose, onSubmit, initialTrip = null, init
     // --- FLIGHT FORM HANDLERS (Reused) ---
     const handleCodeChange = (e, type) => {
         const code = e.target.value.toUpperCase();
-        setSegmentForm(prev => ({ ...prev, [e.target.name]: code }));
+        setSegmentForm(prev => {
+            const updated = { ...prev, [e.target.name]: code };
 
-        if (code.length === 3) {
-            const airport = AIRPORTS.find(a => a.iata === code);
-            if (airport) {
-                if (type === 'dep') {
-                    setSegmentForm(prev => ({
-                        ...prev, depCode: airport.iata, depName: airport.name, depLat: airport.lat, depLng: airport.lng, depCountry: airport.country || ''
-                    }));
-                } else {
-                    setSegmentForm(prev => ({
-                        ...prev, arrCode: airport.iata, arrName: airport.name, arrLat: airport.lat, arrLng: airport.lng, arrCountry: airport.country || ''
-                    }));
+            // Auto-calculate distance if airports found
+            if (code.length === 3) {
+                const airport = AIRPORTS.find(a => a.iata === code);
+                if (airport) {
+                    let newData = {};
+                    if (type === 'dep') {
+                        newData = { depCode: airport.iata, depName: airport.name, depLat: airport.lat, depLng: airport.lng, depCountry: airport.country || '' };
+                    } else {
+                        newData = { arrCode: airport.iata, arrName: airport.name, arrLat: airport.lat, arrLng: airport.lng, arrCountry: airport.country || '' };
+                    }
+
+                    const nextState = { ...updated, ...newData };
+
+                    // Calc Distance
+                    if (nextState.depLat && nextState.depLng && nextState.arrLat && nextState.arrLng) {
+                        const dist = calculateDistance(nextState.depLat, nextState.depLng, nextState.arrLat, nextState.arrLng);
+                        nextState.distance = Math.round(dist);
+                        // Est Duration: (Distance / 800km/h) + 0.5h taxi
+                        const hours = (dist / 800) + 0.5;
+                        nextState.duration = Math.round(hours * 60); // minutes
+                    }
+
+                    return nextState;
                 }
             }
-        }
+            return updated;
+        });
     };
 
     const handleSegmentChange = (e) => {

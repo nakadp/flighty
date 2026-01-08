@@ -5,7 +5,8 @@ import { signOut } from 'firebase/auth';
 import { auth, db } from '../firebase'; // Import db if needed for direct fetching, otherwise use props
 import { collection, getDocs, query, where } from 'firebase/firestore'; // For fresh fetch if needed
 import { CURRENCIES } from '../data/currencies';
-import * as XLSX from 'xlsx';
+// import * as XLSX from 'xlsx'; // Not needed if using helper, but wait, exportData uses it. SettingsModal doesn't need it direct if using helper.
+import { exportToExcel } from '../utils/exportData';
 
 function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, setViewMode, currency, setCurrency, setLanguage }) {
     const { t, language } = useLanguage();

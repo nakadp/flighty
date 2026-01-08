@@ -342,6 +342,18 @@ function App() {
     setShowForm(false);
   };
 
+  // Export Callback
+  const handleExportData = async (tripsToExport, flightsToExport) => {
+    if (!user) return;
+    try {
+      const { exportToExcel } = await import('./utils/exportData');
+      await exportToExcel(user, tripsToExport, flightsToExport);
+    } catch (e) {
+      console.error("Export Handler Error:", e);
+      alert("Export failed: " + e.message);
+    }
+  };
+
   // Backwards compatible info: passing (flight) implies single flight "orphan" save
   // But our new UI will primarily focus on Trips. 
   // If FlightForm is reused for single flight, we wrap it in a pseudo-trip or handle it directly.
@@ -564,6 +576,7 @@ function App() {
               onDelete={handleDeleteFlight}
               onDeleteTrip={handleDeleteTrip}
               onEdit={handleEditFlight}
+              onExportData={handleExportData}
             />
           </div>
         </div>
