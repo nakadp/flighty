@@ -5,8 +5,8 @@ import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
 import { CURRENCIES } from '../data/currencies';
 
-function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, setViewMode, currency, setCurrency }) {
-    const { t, language, changeLanguage } = useLanguage();
+function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, setViewMode, currency, setCurrency, setLanguage }) {
+    const { t, language } = useLanguage();
 
     // On desktop: always 'account' (or whatever). On mobile: null initially (showing menu)
     // We can use a single state 'activeTab' 
@@ -91,7 +91,7 @@ function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, s
                         <label className="text-sm font-medium text-slate-400 uppercase tracking-wider">{t('language')}</label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <button
-                                onClick={() => changeLanguage('en')}
+                                onClick={() => setLanguage('en')}
                                 className={`p-4 rounded-xl border transition-all text-left ${language === 'en'
                                     ? `bg-${accentColor}-500/20 border-${accentColor}-500/50 text-white`
                                     : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
@@ -101,7 +101,7 @@ function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, s
                                 <div className="text-xs opacity-70">English</div>
                             </button>
                             <button
-                                onClick={() => changeLanguage('zh-CN')}
+                                onClick={() => setLanguage('zh-CN')}
                                 className={`p-4 rounded-xl border transition-all text-left ${language === 'zh-CN'
                                     ? `bg-${accentColor}-500/20 border-${accentColor}-500/50 text-white`
                                     : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, X, Plane, Calendar, MapPin, Settings, Share2, Globe, Map as MapIcon, List as ListIcon, LogOut } from 'lucide-react';
 import GlobeView from './components/GlobeView';
@@ -12,10 +13,10 @@ import { useLanguage } from './context/LanguageContext';
 // FIREBASE IMPORTS
 import { auth, db } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { collection, doc, setDoc, deleteDoc, onSnapshot, query, where, orderBy } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, onSnapshot, query, where, orderBy, getDoc } from 'firebase/firestore';
 
 function App() {
-  const { t } = useLanguage();
+  const { t, language, changeLanguage } = useLanguage();
   const [viewMode, setViewMode] = useState('2D');
   const [showForm, setShowForm] = useState(false);
   const [showList, setShowList] = useState(false);
@@ -74,7 +75,7 @@ function App() {
     return () => unsubscribe();
   }, []);
 
-  // FIRESTORE LISTENER
+  // FIRESTORE LISTENER - FLIGHTS & TRIPS
   useEffect(() => {
     if (!user) {
       setFlights([]);
@@ -124,11 +125,64 @@ function App() {
       console.error("Firestore Trips Error:", error);
     });
 
+    // 3. Watch USER SETTINGS
+    const userSettingsRef = doc(db, "users", user.uid);
+    const unsubSettings = onSnapshot(userSettingsRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        console.log("User Settings Received:", data);
+        if (data.currency) setCurrency(data.currency);
+        if (data.accentColor) setAccentColor(data.accentColor);
+        if (data.viewMode) setViewMode(data.viewMode);
+        if (data.language && data.language !== language) {
+          changeLanguage(data.language);
+        }
+      }
+    }, (error) => {
+      console.error("Firestore Settings Error:", error);
+    });
+
     return () => {
       unsubFlights();
       unsubTrips();
+      unsubSettings();
     };
   }, [user]);
+
+  // SETTINGS HANDLERS
+  const saveSetting = async (key, value) => {
+    if (!user) return;
+    try {
+      const userRef = doc(db, "users", user.uid);
+      await setDoc(userRef, {
+        [key]: value,
+        email: user.email, // Keep these updated just in case
+        displayName: user.displayName
+      }, { merge: true });
+    } catch (e) {
+      console.error(`Error saving setting ${key}:`, e);
+    }
+  };
+
+  const handleSetCurrency = (newCurrency) => {
+    setCurrency(newCurrency);
+    saveSetting('currency', newCurrency);
+  };
+
+  const handleSetAccentColor = (newColor) => {
+    setAccentColor(newColor);
+    saveSetting('accentColor', newColor);
+  };
+
+  const handleSetViewMode = (newMode) => {
+    setViewMode(newMode);
+    saveSetting('viewMode', newMode);
+  };
+
+  const handleSetLanguage = (newLang) => {
+    changeLanguage(newLang);
+    saveSetting('language', newLang);
+  };
 
   // LOADING STATE
   if (loadingAuth) return <div className="w-screen h-screen bg-black text-white flex items-center justify-center">{t('loading')}</div>;
@@ -316,7 +370,7 @@ function App() {
       {/* RIGHT ACTIONS */}
       <div className="absolute right-4 md:right-6 top-[45%] md:top-1/2 -translate-y-1/2 flex flex-col gap-3 md:gap-4 z-40 pointer-events-auto">
         <button
-          onClick={() => setViewMode(m => m === '3D' ? '2D' : '3D')}
+          onClick={() => handleSetViewMode(viewMode === '3D' ? '2D' : '3D')}
           className={`w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-${accentColor}-500/20 hover:border-${accentColor}-400/50 hover:${getAccentText()} transition-all shadow-lg group relative`}
         >
           <MapIcon size={20} className={viewMode === '3D' ? 'block' : 'hidden'} />
@@ -358,11 +412,12 @@ function App() {
           user={user}
           onClose={() => setShowSettings(false)}
           accentColor={accentColor}
-          setAccentColor={setAccentColor}
+          setAccentColor={handleSetAccentColor}
           viewMode={viewMode}
-          setViewMode={setViewMode}
+          setViewMode={handleSetViewMode}
           currency={currency}
-          setCurrency={setCurrency}
+          setCurrency={handleSetCurrency}
+          setLanguage={handleSetLanguage}
         />
       )}
 
