@@ -40,34 +40,23 @@ function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, s
     const handleExportFlights = async () => {
         if (!user) return;
         try {
-            // Fetch fresh data to ensure we have everything
-            // Or we could pass 'flights' prop to SettingsModal. checking if we can pass it or fetch it.
-            // Since we didn't pass 'flights' to SettingsModal in App.jsx, I'll fetch them here or just use a prop if I added it. 
-            // Better to fetch to be safe and independent.
-            const q = query(collection(db, "test"), where("userId", "==", user.uid));
-            const querySnapshot = await getDocs(q);
-            const flightsData = querySnapshot.docs.map(doc => {
-                const data = doc.data();
-                return {
-                    Date: data.date,
-                    Departure: data.depCode,
-                    Arrival: data.arrCode,
-                    Distance_KM: data.distance, // assuming distance is stored, or calc it
-                    Airline: data.airline,
-                    Flight_Number: data.flightNumber,
-                    Aircraft: data.aircraft,
-                    Cost: data.cost,
-                    Notes: data.notes
-                };
-            });
+            // Fetch everything: Flights AND Trips
+            const qFlights = query(collection(db, "test"), where("userId", "==", user.uid));
+            const qTrips = query(collection(db, "trips"), where("userId", "==", user.uid));
 
-            const worksheet = XLSX.utils.json_to_sheet(flightsData);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Flights");
-            XLSX.writeFile(workbook, "MyFlights.xlsx");
+            const [flightsSnap, tripsSnap] = await Promise.all([
+                getDocs(qFlights),
+                getDocs(qTrips)
+            ]);
+
+            const flights = flightsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+            const trips = tripsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+
+            await exportToExcel(user, trips, flights);
+
         } catch (error) {
             console.error("Export Error:", error);
-            alert("Failed to export data.");
+            alert("Failed to export data: " + error.message);
         }
     };
 

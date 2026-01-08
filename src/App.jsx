@@ -70,8 +70,54 @@ function App() {
 
   // AUTH LISTENER
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       console.log("Auth State Changed:", currentUser ? "Logged In" : "Logged Out", currentUser);
+
+      if (currentUser) {
+        // Ensure user document exists in Firestore
+        const userRef = doc(db, "users", currentUser.uid);
+        try {
+          const userSnap = await getDoc(userRef);
+          if (!userSnap.exists()) {
+            // New user (or first time login with this method), create default doc
+            const email = currentUser.email || "";
+            const isAnonymous = !email;
+            let displayName = currentUser.displayName;
+
+            if (!displayName) {
+              if (isAnonymous) {
+                // Should not happen with new logic, but fallback
+                displayName = `Guest-${currentUser.uid.substring(0, 6).toUpperCase()}`;
+              } else if (email.endsWith('@skytrace.local')) {
+                // Extract part after guest_ and before @
+                // email format: guest_UUID@skytrace.local
+                const match = email.match(/guest_(.*?)@/);
+                if (match && match[1]) {
+                  displayName = `Guest-${match[1].substring(0, 6).toUpperCase()}`;
+                } else {
+                  displayName = "Guest-Device";
+                }
+              } else {
+                displayName = "User";
+              }
+            }
+
+            await setDoc(userRef, {
+              email: email || "anonymous",
+              displayName: displayName,
+              photoURL: currentUser.photoURL || null,
+              currency: 'USD',
+              accentColor: 'cyan',
+              language: 'en',
+              createdAt: new Date().toISOString()
+            });
+            console.log("Created new user document for:", currentUser.uid);
+          }
+        } catch (error) {
+          console.error("Error checking/creating user doc:", error);
+        }
+      }
+
       setUser(currentUser);
       setLoadingAuth(false);
     });
