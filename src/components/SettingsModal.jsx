@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Palette, Globe, LogOut, ChevronRight, ArrowLeft } from 'lucide-react';
+import { X, User, Palette, Globe, LogOut, ChevronRight, ArrowLeft, Database, Download } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { signOut } from 'firebase/auth';
-import { auth } from '../firebase';
+import { auth, db } from '../firebase'; // Import db if needed for direct fetching, otherwise use props
+import { collection, getDocs, query, where } from 'firebase/firestore'; // For fresh fetch if needed
 import { CURRENCIES } from '../data/currencies';
+import * as XLSX from 'xlsx';
 
 function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, setViewMode, currency, setCurrency, setLanguage }) {
     const { t, language } = useLanguage();
@@ -35,10 +37,45 @@ function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, s
         }
     };
 
+    const handleExportFlights = async () => {
+        if (!user) return;
+        try {
+            // Fetch fresh data to ensure we have everything
+            // Or we could pass 'flights' prop to SettingsModal. checking if we can pass it or fetch it.
+            // Since we didn't pass 'flights' to SettingsModal in App.jsx, I'll fetch them here or just use a prop if I added it. 
+            // Better to fetch to be safe and independent.
+            const q = query(collection(db, "test"), where("userId", "==", user.uid));
+            const querySnapshot = await getDocs(q);
+            const flightsData = querySnapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    Date: data.date,
+                    Departure: data.depCode,
+                    Arrival: data.arrCode,
+                    Distance_KM: data.distance, // assuming distance is stored, or calc it
+                    Airline: data.airline,
+                    Flight_Number: data.flightNumber,
+                    Aircraft: data.aircraft,
+                    Cost: data.cost,
+                    Notes: data.notes
+                };
+            });
+
+            const worksheet = XLSX.utils.json_to_sheet(flightsData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Flights");
+            XLSX.writeFile(workbook, "MyFlights.xlsx");
+        } catch (error) {
+            console.error("Export Error:", error);
+            alert("Failed to export data.");
+        }
+    };
+
     const tabs = [
         { id: 'account', icon: User, label: t('account') },
         { id: 'general', icon: Globe, label: t('general') },
         { id: 'appearance', icon: Palette, label: t('appearance') },
+        { id: 'data', icon: Database, label: t('data') || "Data" },
     ];
 
     const currentTab = tabs.find(t => t.id === activeTab);
@@ -155,30 +192,32 @@ function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, s
                         </div>
                     </div>
 
+                </div>
+            )}
+
+            {/* DATA TAB */}
+            {activeTab === 'data' && (
+                <div className="space-y-8">
+                    <div>
+                        <h3 className="hidden md:block text-2xl font-bold text-white mb-6">{t('data') || "Data"}</h3>
+                    </div>
+
                     <div className="space-y-4">
-                        <label className="text-sm font-medium text-slate-400 uppercase tracking-wider">{t('view_mode')}</label>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="p-6 rounded-2xl bg-white/5 border border-white/10 flex flex-col items-start gap-4">
+                            <div className="flex items-center gap-3 text-lg font-medium text-white">
+                                <Database size={24} className={`text-${accentColor}-400`} />
+                                Export Data
+                            </div>
+                            <p className="text-slate-400 text-sm">Download your complete flight history as an Excel spreadsheet (.xlsx).</p>
                             <button
-                                onClick={() => setViewMode('2D')}
-                                className={`p-4 rounded-xl border transition-all text-center ${viewMode === '2D'
-                                    ? `bg-${accentColor}-500/20 border-${accentColor}-500/50 text-white`
-                                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
-                                    }`}
+                                onClick={handleExportFlights}
+                                className={`flex items-center gap-2 px-6 py-3 rounded-xl bg-${accentColor}-600 text-white hover:bg-${accentColor}-500 transition-colors font-medium`}
                             >
-                                2D Map
-                            </button>
-                            <button
-                                onClick={() => setViewMode('3D')}
-                                className={`p-4 rounded-xl border transition-all text-center ${viewMode === '3D'
-                                    ? `bg-${accentColor}-500/20 border-${accentColor}-500/50 text-white`
-                                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
-                                    }`}
-                            >
-                                3D Globe
+                                <Download size={18} />
+                                {t('export_excel') || "Export to Excel"}
                             </button>
                         </div>
                     </div>
-
                 </div>
             )}
         </div>

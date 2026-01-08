@@ -199,7 +199,7 @@ export default function GlobeView({ flights = [], width, height, onFlightClick }
             />
 
             {/* CONTROLS */}
-            <div className="absolute top-20 right-6 z-40 flex flex-col gap-2 pointer-events-auto">
+            <div className="absolute top-36 md:top-20 right-6 z-40 flex flex-col gap-2 pointer-events-auto">
                 <button
                     onClick={() => setGlobeMode(m => m === 'satellite' ? 'abstract' : 'satellite')}
                     className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold bg-black/60 backdrop-blur-md border border-white/20 text-white hover:bg-white/10 transition-all shadow-xl w-full justify-center"

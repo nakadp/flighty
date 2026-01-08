@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, X, Plane, Calendar, MapPin, Settings, Share2, Globe, Map as MapIcon, List as ListIcon, LogOut } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Plus, X, Plane, Calendar, MapPin, Settings, Share2, Globe, Map as MapIcon, List as ListIcon, LogOut, Check, Download, Link } from 'lucide-react';
 import GlobeView from './components/GlobeView';
 import MapView from './components/MapView';
 import FlightForm from './components/FlightForm';
@@ -9,6 +9,7 @@ import Login from './components/Login';
 import SettingsModal from './components/SettingsModal';
 import { calculateDistance, formatDistance } from './utils/calculations';
 import { useLanguage } from './context/LanguageContext';
+import html2canvas from 'html2canvas';
 
 // FIREBASE IMPORTS
 import { auth, db } from './firebase';
@@ -32,6 +33,7 @@ function App() {
 
   const [user, setUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
+  const [sharing, setSharing] = useState(false);
 
   // Window Resize Hook
   const [dimensions, setDimensions] = useState({
@@ -133,7 +135,7 @@ function App() {
         console.log("User Settings Received:", data);
         if (data.currency) setCurrency(data.currency);
         if (data.accentColor) setAccentColor(data.accentColor);
-        if (data.viewMode) setViewMode(data.viewMode);
+        // viewMode persistence removed
         if (data.language && data.language !== language) {
           changeLanguage(data.language);
         }
@@ -176,12 +178,60 @@ function App() {
 
   const handleSetViewMode = (newMode) => {
     setViewMode(newMode);
-    saveSetting('viewMode', newMode);
+    // saveSetting('viewMode', newMode); // Removed persistence
   };
 
   const handleSetLanguage = (newLang) => {
     changeLanguage(newLang);
     saveSetting('language', newLang);
+  };
+
+  const handleShare = async () => {
+    setSharing(true);
+    try {
+      // Capture the map container.
+      // We assume the background div with 'map-container' or just body.
+      // Since map is absolute at z-0, capturing document.body is easiest but might get UI elements.
+      // Best is to capture the map element.
+      // However, for simplicity and ensuring we get the map visual:
+      // Let's hide UI elements temporarily? No, standard screenshot usually wants Flighty stats + map.
+      // User said "Share Flight Route 2D Image". 
+      // If viewMode is 3D, we might want to warn or switch? 
+      // User request: "Share 2D Image". So we should probably capture the MapView.
+
+      const element = document.body; // Capture full screen for now as it looks best with stats
+
+      const canvas = await html2canvas(element, {
+        useCORS: true,
+        ignoreElements: (node) => {
+          // Ignore buttons and overlays if we want clean map key?
+          // Actually user usually wants the stats overlay.
+          // Maybe ignore the right-side buttons to look cleaner.
+          return node.classList && node.classList.contains('share-ignore');
+        }
+      });
+
+      const dataUrl = canvas.toDataURL('image/png');
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], 'flight-history.png', { type: 'image/png' });
+
+      if (navigator.share && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'My Flight History',
+          text: 'Check out my flight history!'
+        });
+      } else {
+        // Desktop / Fallback
+        const link = document.createElement('a');
+        link.download = 'flight-history.png';
+        link.href = dataUrl;
+        link.click();
+      }
+    } catch (error) {
+      console.error("Share failed:", error);
+    }
+    setSharing(false);
   };
 
   // LOADING STATE
@@ -321,7 +371,7 @@ function App() {
         )}
       </div>
 
-      {/* TOP BAR */}
+      {/* TOP BAR - share-ignore class means it won't be captured if we want to hide it, but user might want stats. Let's keep stats. */}
       <div className={`absolute top-0 left-0 right-0 h-auto min-h-[80px] md:h-20 bg-gradient-to-b from-black/90 via-black/40 to-transparent z-40 flex flex-col md:flex-row items-center justify-between px-4 md:px-6 py-2 md:py-0 transition-all ${isElectron ? 'pointer-events-none' : ''}`}>
         <div className="flex items-center gap-4 pointer-events-auto w-full md:w-auto">
           {user.photoURL ? (
@@ -367,8 +417,18 @@ function App() {
         <div className="hidden md:block w-24"></div>
       </div>
 
-      {/* RIGHT ACTIONS */}
-      <div className="absolute right-4 md:right-6 top-[45%] md:top-1/2 -translate-y-1/2 flex flex-col gap-3 md:gap-4 z-40 pointer-events-auto">
+      {/* RIGHT ACTIONS - with share-ignore so they don't appear in screenshot */}
+      <div className="share-ignore absolute right-4 md:right-6 top-[45%] md:top-1/2 -translate-y-1/2 flex flex-col gap-3 md:gap-4 z-40 pointer-events-auto">
+
+        {/* SHARE BUTTON */}
+        <button
+          onClick={handleShare}
+          className={`w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-${accentColor}-500/20 hover:border-${accentColor}-400/50 hover:${getAccentText()} transition-all shadow-lg group relative`}
+        >
+          {sharing ? <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/50 border-t-white"></div> : <Share2 size={20} />}
+          <span className="absolute right-14 bg-black/80 px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{t('share') || "Share"}</span>
+        </button>
+
         <button
           onClick={() => handleSetViewMode(viewMode === '3D' ? '2D' : '3D')}
           className={`w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-${accentColor}-500/20 hover:border-${accentColor}-400/50 hover:${getAccentText()} transition-all shadow-lg group relative`}
@@ -380,7 +440,7 @@ function App() {
 
         <button
           onClick={() => setShowList(true)}
-          className="w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-slate-400 hover:bg-white/10 hover:text-white transition-all shadow-lg group relative"
+          className={`w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-${accentColor}-500/20 hover:border-${accentColor}-400/50 hover:${getAccentText()} transition-all shadow-lg group relative`}
         >
           <ListIcon size={20} />
           <span className="absolute right-14 bg-black/80 px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{t('flight_history')}</span>
@@ -388,7 +448,7 @@ function App() {
 
         <button
           onClick={() => setShowSettings(true)}
-          className="w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-slate-400 hover:bg-white/10 hover:text-white transition-all shadow-lg group relative"
+          className={`w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-${accentColor}-500/20 hover:border-${accentColor}-400/50 hover:${getAccentText()} transition-all shadow-lg group relative`}
         >
           <Settings size={20} />
           <span className="absolute right-14 bg-black/80 px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{t('settings')}</span>
@@ -396,7 +456,7 @@ function App() {
       </div>
 
       {/* FAB */}
-      <div className="absolute bottom-20 right-4 md:bottom-8 md:right-6 z-40 pointer-events-auto">
+      <div className="share-ignore absolute bottom-20 right-4 md:bottom-8 md:right-6 z-40 pointer-events-auto">
         <button
           onClick={() => { setEditingFlight(null); setShowForm(true); }}
           className={`group relative flex items-center justify-center w-14 h-14 rounded-full ${getAccentBg()} hover:bg-${accentColor}-500 text-white shadow-[0_0_30px_rgba(255,255,255,0.2)] transition-all hover:scale-110 active:scale-95`}
