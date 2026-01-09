@@ -4,6 +4,7 @@ import { AIRPORTS } from '../data/airports';
 import { useLanguage } from '../context/LanguageContext';
 import BoardingPassScanner from './BoardingPassScanner';
 import { calculateDistance } from '../utils/calculations';
+import AirportSearchInput from './AirportSearchInput';
 
 export default function FlightForm({ onClose, onSubmit, initialTrip = null, initialData = null, existingFlights = [], accentColor = 'cyan' }) {
     const { t, language } = useLanguage();
@@ -122,38 +123,61 @@ export default function FlightForm({ onClose, onSubmit, initialTrip = null, init
     };
 
     // --- FLIGHT FORM HANDLERS (Reused) ---
+    // Update logic for filling airport data (reusable)
+    const updateWithAirportData = (currentForm, type, airport) => {
+        if (!airport) return currentForm;
+
+        const prefix = type === 'dep' ? 'dep' : 'arr';
+        const newData = {
+            [`${prefix}Code`]: airport.iata,
+            [`${prefix}Name`]: airport.name,
+            [`${prefix}Lat`]: airport.lat,
+            [`${prefix}Lng`]: airport.lng,
+            [`${prefix}Country`]: airport.country || ''
+        };
+
+        const nextState = { ...currentForm, ...newData };
+
+        // Recalculate Distance/Duration
+        if (nextState.depLat && nextState.depLng && nextState.arrLat && nextState.arrLng) {
+            const dist = calculateDistance(nextState.depLat, nextState.depLng, nextState.arrLat, nextState.arrLng);
+            nextState.distance = Math.round(dist);
+            // Est Duration: (Distance / 800km/h) + 0.5h taxi
+            const hours = (dist / 800) + 0.5;
+            nextState.duration = Math.round(hours * 60); // minutes
+        }
+
+        return nextState;
+    };
+
+    // Handle manual code entry
     const handleCodeChange = (e, type) => {
         const code = e.target.value.toUpperCase();
         setSegmentForm(prev => {
             const updated = { ...prev, [e.target.name]: code };
 
-            // Auto-calculate distance if airports found
+            // Auto-calculate distance if airports found via code
             if (code.length === 3) {
                 const airport = AIRPORTS.find(a => a.iata === code);
                 if (airport) {
-                    let newData = {};
-                    if (type === 'dep') {
-                        newData = { depCode: airport.iata, depName: airport.name, depLat: airport.lat, depLng: airport.lng, depCountry: airport.country || '' };
-                    } else {
-                        newData = { arrCode: airport.iata, arrName: airport.name, arrLat: airport.lat, arrLng: airport.lng, arrCountry: airport.country || '' };
-                    }
-
-                    const nextState = { ...updated, ...newData };
-
-                    // Calc Distance
-                    if (nextState.depLat && nextState.depLng && nextState.arrLat && nextState.arrLng) {
-                        const dist = calculateDistance(nextState.depLat, nextState.depLng, nextState.arrLat, nextState.arrLng);
-                        nextState.distance = Math.round(dist);
-                        // Est Duration: (Distance / 800km/h) + 0.5h taxi
-                        const hours = (dist / 800) + 0.5;
-                        nextState.duration = Math.round(hours * 60); // minutes
-                    }
-
-                    return nextState;
+                    return updateWithAirportData(updated, type, airport);
                 }
             }
             return updated;
         });
+    };
+
+    // Handle Autocomplete Selection
+    const handleAirportSelect = (text, airport, type) => {
+        if (airport) {
+            setSegmentForm(prev => updateWithAirportData(prev, type, airport));
+        } else {
+            // Just text update
+            setSegmentForm(prev => ({
+                ...prev,
+                [type === 'dep' ? 'depName' : 'arrName']: text
+            }));
+        }
     };
 
     const handleSegmentChange = (e) => {
@@ -170,19 +194,15 @@ export default function FlightForm({ onClose, onSubmit, initialTrip = null, init
             code = code.toUpperCase();
             const airport = AIRPORTS.find(a => a.iata === code);
             if (airport) {
-                if (type === 'dep') {
-                    newState.depCode = airport.iata;
-                    newState.depName = airport.name;
-                    newState.depLat = airport.lat;
-                    newState.depLng = airport.lng;
-                    newState.depCountry = airport.country || '';
-                } else {
-                    newState.arrCode = airport.iata;
-                    newState.arrName = airport.name;
-                    newState.arrLat = airport.lat;
-                    newState.arrLng = airport.lng;
-                    newState.arrCountry = airport.country || '';
-                }
+                // Use our new reusable logic
+                // But we need to use the helper against the accumulated newState
+                // Since helper accepts (currentForm, type, airport), we can use it.
+                // But helper returns a NEW object.
+                // So:
+                const tempState = { ...newState }; // Snapshot
+                const updated = updateWithAirportData(tempState, type, airport);
+                // Merge back relevant fields in case helper does extra stuff
+                Object.assign(newState, updated);
             } else {
                 // Set code even if not found
                 if (type === 'dep') newState.depCode = code;
@@ -343,7 +363,14 @@ export default function FlightForm({ onClose, onSubmit, initialTrip = null, init
                                     <Input label="Code" name="depCode" value={segmentForm.depCode} onChange={(e) => handleCodeChange(e, 'dep')} required placeholder="PEK" maxLength={3} autoFocus accentColor={accentColor} />
                                 </div>
                                 <div className="md:col-span-9">
-                                    <Input label="Airport Name" name="depName" value={segmentForm.depName} onChange={handleSegmentChange} required placeholder="Beijing Capital" accentColor={accentColor} />
+                                    <AirportSearchInput
+                                        label="City / Airport Name"
+                                        value={segmentForm.depName}
+                                        onSelect={(text, airport) => handleAirportSelect(text, airport, 'dep')}
+                                        required
+                                        placeholder="Beijing Capital (Type City or Name)"
+                                        accentColor={accentColor}
+                                    />
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
@@ -360,7 +387,14 @@ export default function FlightForm({ onClose, onSubmit, initialTrip = null, init
                                     <Input label="Code" name="arrCode" value={segmentForm.arrCode} onChange={(e) => handleCodeChange(e, 'arr')} required placeholder="LHR" maxLength={3} accentColor={accentColor} />
                                 </div>
                                 <div className="md:col-span-9">
-                                    <Input label="Airport Name" name="arrName" value={segmentForm.arrName} onChange={handleSegmentChange} required placeholder="Heathrow" accentColor={accentColor} />
+                                    <AirportSearchInput
+                                        label="City / Airport Name"
+                                        value={segmentForm.arrName}
+                                        onSelect={(text, airport) => handleAirportSelect(text, airport, 'arr')}
+                                        required
+                                        placeholder="London Heathrow"
+                                        accentColor={accentColor}
+                                    />
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
