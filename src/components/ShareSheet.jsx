@@ -85,9 +85,8 @@ const ShareSheet = ({
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${copied ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-slate-400'}`}>
                                 {copied ? <Check size={20} /> : <Link size={20} />}
                             </div>
-                            <div className="flex flex-col items-start flex-1">
+                            <div className="flex flex-col items-start flex-1 justify-center">
                                 <span className="text-sm font-medium text-slate-200">{copied ? (t('link_copied') || "Copied!") : (t('copy_link') || "Copy Link")}</span>
-                                <span className="text-xs text-slate-500 truncate max-w-[150px] md:max-w-[200px]">https://skytrace.app/...</span>
                             </div>
                             <div className="p-2">
                                 <Copy size={16} className="text-slate-500" />

@@ -15,11 +15,17 @@ import StaticMap from './components/StaticMap';
 
 // FIREBASE IMPORTS
 import { auth, db } from './firebase';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signOut, signInAnonymously } from 'firebase/auth';
 import { collection, doc, setDoc, deleteDoc, onSnapshot, query, where, orderBy, getDoc } from 'firebase/firestore';
 
 function App() {
   const { t, language, changeLanguage } = useLanguage();
+
+  // SHARED VIEW LOGIC
+  const queryParams = new URLSearchParams(window.location.search);
+  const sharedUid = queryParams.get('uid');
+  const isSharedView = !!sharedUid;
+
   const [viewMode, setViewMode] = useState('2D');
   const [showForm, setShowForm] = useState(false);
   const [showList, setShowList] = useState(false);
@@ -90,6 +96,16 @@ function App() {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       console.log("Auth State Changed:", currentUser ? "Logged In" : "Logged Out", currentUser);
 
+      if (isSharedView) {
+        if (!currentUser) {
+          signInAnonymously(auth).catch((e) => console.error("Anon Auth Error", e));
+          return;
+        }
+        setUser(currentUser);
+        setLoadingAuth(false);
+        return;
+      }
+
       if (currentUser) {
         // Ensure user document exists in Firestore
         const userRef = doc(db, "users", currentUser.uid);
@@ -139,22 +155,25 @@ function App() {
       setLoadingAuth(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [isSharedView]);
 
   // FIRESTORE LISTENER - FLIGHTS & TRIPS
   useEffect(() => {
-    if (!user) {
+    // Determine which UID to fetch data for
+    const targetUid = isSharedView ? sharedUid : (user ? user.uid : null);
+
+    if (!targetUid) {
       setFlights([]);
       setTrips([]);
       return;
     }
 
-    console.log("Setting up Firestore watcher for:", user.uid);
+    console.log("Setting up Firestore watcher for:", targetUid, isSharedView ? "(Shared View)" : "(Private View)");
 
     // 1. Watch FLIGHTS
     const qFlights = query(
       collection(db, "test"),
-      where("userId", "==", user.uid),
+      where("userId", "==", targetUid),
       orderBy("date", "desc")
     );
 
@@ -175,7 +194,7 @@ function App() {
     // 2. Watch TRIPS
     const qTrips = query(
       collection(db, "trips"),
-      where("userId", "==", user.uid)
+      where("userId", "==", targetUid)
       // orderBy("startDate", "desc") // keeping simple for now to avoid multiple index requirements at once
     );
 
@@ -192,7 +211,7 @@ function App() {
     });
 
     // 3. Watch USER SETTINGS
-    const userSettingsRef = doc(db, "users", user.uid);
+    const userSettingsRef = doc(db, "users", targetUid);
     const unsubSettings = onSnapshot(userSettingsRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -200,7 +219,11 @@ function App() {
         if (data.currency) setCurrency(data.currency);
         if (data.accentColor) setAccentColor(data.accentColor);
         // viewMode persistence removed
-        if (data.language && data.language !== language) {
+        // Only change language if it's the User's own view. In shared view, generally keep viewer preference? 
+        // Or if we want to show exactly what they see. 
+        // The user request says "viewer cannot edit settings", but implies viewing what was created?
+        // Let's NOT force language change on viewer for now.
+        if (!isSharedView && data.language && data.language !== language) {
           changeLanguage(data.language);
         }
       }
@@ -213,11 +236,11 @@ function App() {
       unsubTrips();
       unsubSettings();
     };
-  }, [user]);
+  }, [user, isSharedView, sharedUid]);
 
   // SETTINGS HANDLERS
   const saveSetting = async (key, value) => {
-    if (!user) return;
+    if (!user || isSharedView) return;
     try {
       const userRef = doc(db, "users", user.uid);
       await setDoc(userRef, {
@@ -347,15 +370,23 @@ function App() {
   };
 
   const handleCopyLink = () => {
-    // Placeholder for actual link logic
-    navigator.clipboard.writeText(window.location.href);
+    // Generate link including UID
+    // Use window.location.origin + pathname + ?uid=USER_ID
+    const targetId = isSharedView ? sharedUid : (user ? user.uid : "");
+    if (!targetId) return;
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('uid', targetId);
+
+    navigator.clipboard.writeText(url.toString());
   };
 
   // LOADING STATE
   if (loadingAuth) return <div className="w-screen h-screen bg-black text-white flex items-center justify-center">{t('loading')}</div>;
 
   // LOGIN SCREEN
-  if (!user) return <Login />;
+  // If Shared View, we skip Login screen (user is set to anon or whatever in useEffect)
+  if (!user && !isSharedView) return <Login />;
 
   // Updated to handle Trip object which contains flights
   const handleSaveTrip = async (tripData, flightDataList) => {
@@ -507,22 +538,32 @@ function App() {
 
       {/* TOP BAR - share-ignore class means it won't be captured if we want to hide it, but user might want stats. Let's keep stats. */}
       <div className={`absolute top-0 left-0 right-0 h-auto min-h-[80px] md:h-20 bg-gradient-to-b from-black/90 via-black/40 to-transparent z-40 flex flex-col md:flex-row items-center justify-between px-4 md:px-6 py-2 md:py-0 transition-all ${isElectron ? 'pointer-events-none' : ''}`}>
-        <div className="flex items-center gap-4 pointer-events-auto w-full md:w-auto">
-          {user.photoURL ? (
-            <img src={user.photoURL} alt="User" className={`w-10 h-10 rounded-full border ${getAccentBorder()}/50`} />
-          ) : (
-            <div className={`w-10 h-10 rounded-full bg-${accentColor}-900/50 border border-${accentColor}-500/30 flex items-center justify-center ${getAccentText()} font-bold`}>
-              {user.displayName ? user.displayName.charAt(0) : 'U'}
+        {/* User Profile Logic: Hide in Shared Mode */}
+        {!isSharedView ? (
+          <div className="flex items-center gap-4 pointer-events-auto w-full md:w-auto">
+            {user.photoURL ? (
+              <img src={user.photoURL} alt="User" className={`w-10 h-10 rounded-full border ${getAccentBorder()}/50`} />
+            ) : (
+              <div className={`w-10 h-10 rounded-full bg-${accentColor}-900/50 border border-${accentColor}-500/30 flex items-center justify-center ${getAccentText()} font-bold`}>
+                {user.displayName ? user.displayName.charAt(0) : 'U'}
+              </div>
+            )}
+
+            <div>
+              <h1 className="text-lg font-black tracking-tighter text-white">SKYTRACE</h1>
+              <div className={`text-[10px] ${getAccentText()} uppercase tracking-[0.2em]`}>{user.displayName || "Private Log"}</div>
             </div>
-          )}
-
-          <div>
-            <h1 className="text-lg font-black tracking-tighter text-white">SKYTRACE</h1>
-            <div className={`text-[10px] ${getAccentText()} uppercase tracking-[0.2em]`}>{user.displayName || "Private Log"}</div>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center gap-4 pointer-events-auto w-full md:w-auto">
+            <div>
+              <h1 className="text-lg font-black tracking-tighter text-white">SKYTRACE</h1>
+              <div className={`text-[10px] ${getAccentText()} uppercase tracking-[0.2em]`}>FLIGHT MAP</div>
+            </div>
+          </div>
+        )}
 
-        <div className="flex items-center gap-2 md:gap-8 pointer-events-auto cursor-pointer hover:opacity-80 transition-opacity mt-2 md:mt-0 w-full md:w-auto justify-center md:justify-end" onClick={() => setShowList(true)}>
+        <div className={`flex items-center gap-2 md:gap-8 pointer-events-auto ${!isSharedView ? 'cursor-pointer hover:opacity-80' : ''} transition-opacity mt-2 md:mt-0 w-full md:w-auto justify-center md:justify-end`} onClick={() => !isSharedView && setShowList(true)}>
           <div className="text-center">
             <div className="text-[10px] md:text-xs text-slate-400 uppercase tracking-wider mb-0.5">{t('flights')}</div>
             <div className="text-sm md:text-xl font-bold text-white font-mono">{stats.count}</div>
@@ -554,14 +595,16 @@ function App() {
       {/* RIGHT ACTIONS - with share-ignore so they don't appear in screenshot */}
       <div className="share-ignore absolute right-4 md:right-6 top-[45%] md:top-1/2 -translate-y-1/2 flex flex-col gap-3 md:gap-4 z-40 pointer-events-auto">
 
-        {/* SHARE BUTTON */}
-        <button
-          onClick={handleShare}
-          className={`w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover-accent-btn transition-all shadow-lg group relative`}
-        >
-          {sharing ? <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/50 border-t-white"></div> : <Share2 size={20} />}
-          <span className="absolute right-14 bg-black/80 px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{t('share') || "Share"}</span>
-        </button>
+        {/* SHARE BUTTON - Hide in Shared View */}
+        {!isSharedView && (
+          <button
+            onClick={handleShare}
+            className={`w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover-accent-btn transition-all shadow-lg group relative`}
+          >
+            {sharing ? <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/50 border-t-white"></div> : <Share2 size={20} />}
+            <span className="absolute right-14 bg-black/80 px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{t('share') || "Share"}</span>
+          </button>
+        )}
 
         <button
           onClick={() => handleSetViewMode(viewMode === '3D' ? '2D' : '3D')}
@@ -572,33 +615,39 @@ function App() {
           <span className="absolute right-14 bg-black/80 px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{t('switch_view')}</span>
         </button>
 
-        <button
-          onClick={() => setShowList(true)}
-          className={`w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover-accent-btn transition-all shadow-lg group relative`}
-        >
-          <ListIcon size={20} />
-          <span className="absolute right-14 bg-black/80 px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{t('flight_history')}</span>
-        </button>
+        {!isSharedView && (
+          <>
+            <button
+              onClick={() => setShowList(true)}
+              className={`w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover-accent-btn transition-all shadow-lg group relative`}
+            >
+              <ListIcon size={20} />
+              <span className="absolute right-14 bg-black/80 px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{t('flight_history')}</span>
+            </button>
 
-        <button
-          onClick={() => setShowSettings(true)}
-          className={`w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover-accent-btn transition-all shadow-lg group relative`}
-        >
-          <Settings size={20} />
-          <span className="absolute right-14 bg-black/80 px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{t('settings')}</span>
-        </button>
+            <button
+              onClick={() => setShowSettings(true)}
+              className={`w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover-accent-btn transition-all shadow-lg group relative`}
+            >
+              <Settings size={20} />
+              <span className="absolute right-14 bg-black/80 px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{t('settings')}</span>
+            </button>
+          </>
+        )}
       </div>
 
-      {/* FAB */}
-      <div className="share-ignore absolute bottom-20 right-4 md:bottom-8 md:right-6 z-40 pointer-events-auto">
-        <button
-          onClick={() => { setEditingFlight(null); setShowForm(true); }}
-          className={`group relative flex items-center justify-center w-14 h-14 rounded-full ${getAccentBg()} hover:bg-${accentColor}-500 text-white shadow-[0_0_30px_rgba(255,255,255,0.2)] transition-all hover:scale-110 active:scale-95`}
-        >
-          <div className="absolute inset-0 rounded-full border border-white/20 animate-pulse"></div>
-          <Plus size={28} strokeWidth={2.5} className="group-hover:rotate-90 transition-transform duration-300" />
-        </button>
-      </div>
+      {/* FAB - Hide in Shared View */}
+      {!isSharedView && (
+        <div className="share-ignore absolute bottom-20 right-4 md:bottom-8 md:right-6 z-40 pointer-events-auto">
+          <button
+            onClick={() => { setEditingFlight(null); setShowForm(true); }}
+            className={`group relative flex items-center justify-center w-14 h-14 rounded-full ${getAccentBg()} hover:bg-${accentColor}-500 text-white shadow-[0_0_30px_rgba(255,255,255,0.2)] transition-all hover:scale-110 active:scale-95`}
+          >
+            <div className="absolute inset-0 rounded-full border border-white/20 animate-pulse"></div>
+            <Plus size={28} strokeWidth={2.5} className="group-hover:rotate-90 transition-transform duration-300" />
+          </button>
+        </div>
+      )}
 
       {/* MODALS */}
       <ShareSheet
