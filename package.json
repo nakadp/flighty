@@ -15,12 +15,14 @@
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
+    "bcbp": "^6.0.2",
     "better-sqlite3": "^12.5.0",
     "date-fns": "^4.1.0",
     "firebase": "^12.7.0",
     "framer-motion": "^12.24.0",
     "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
+    "html5-qrcode": "^2.3.8",
     "leaflet": "^1.9.4",
     "lodash.throttle": "^4.1.1",
     "lucide-react": "^0.562.0",

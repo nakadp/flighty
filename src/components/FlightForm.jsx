@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plane, Plus, Trash2, Edit2, ChevronRight, Calendar, DollarSign } from 'lucide-react';
+import { X, Plane, Plus, Trash2, Edit2, ChevronRight, Calendar, DollarSign, Scan } from 'lucide-react';
 import { AIRPORTS } from '../data/airports';
 import { useLanguage } from '../context/LanguageContext';
-
+import BoardingPassScanner from './BoardingPassScanner';
 import { calculateDistance } from '../utils/calculations';
 
 export default function FlightForm({ onClose, onSubmit, initialTrip = null, initialData = null, existingFlights = [], accentColor = 'cyan' }) {
@@ -10,6 +10,7 @@ export default function FlightForm({ onClose, onSubmit, initialTrip = null, init
 
     // Mode: 'TRIP' (Overview) or 'FLIGHT' (Editing a specific segment)
     const [view, setView] = useState('TRIP');
+    const [showScanner, setShowScanner] = useState(false);
 
     // Trip Meta Data
     const [tripData, setTripData] = useState({
@@ -159,6 +160,53 @@ export default function FlightForm({ onClose, onSubmit, initialTrip = null, init
         setSegmentForm({ ...segmentForm, [e.target.name]: e.target.value });
     };
 
+    const handleScanSuccess = (data) => {
+        // Prepare new form state
+        let newState = { ...segmentForm };
+
+        // Helper to update airport info
+        const updateAirport = (code, type) => {
+            if (!code) return;
+            code = code.toUpperCase();
+            const airport = AIRPORTS.find(a => a.iata === code);
+            if (airport) {
+                if (type === 'dep') {
+                    newState.depCode = airport.iata;
+                    newState.depName = airport.name;
+                    newState.depLat = airport.lat;
+                    newState.depLng = airport.lng;
+                    newState.depCountry = airport.country || '';
+                } else {
+                    newState.arrCode = airport.iata;
+                    newState.arrName = airport.name;
+                    newState.arrLat = airport.lat;
+                    newState.arrLng = airport.lng;
+                    newState.arrCountry = airport.country || '';
+                }
+            } else {
+                // Set code even if not found
+                if (type === 'dep') newState.depCode = code;
+                else newState.arrCode = code;
+            }
+        };
+
+        if (data.depCode) updateAirport(data.depCode, 'dep');
+        if (data.arrCode) updateAirport(data.arrCode, 'arr');
+        if (data.airline) newState.airline = data.airline;
+        if (data.flightNumber) newState.flightNumber = data.flightNumber;
+        if (data.date) newState.date = data.date;
+        if (data.seat) newState.note = `Seat: ${data.seat}`;
+
+        // Recalculate Distance/Duration - Duplicating logic for robust state update
+        if (newState.depLat && newState.depLng && newState.arrLat && newState.arrLng) {
+            const dist = calculateDistance(newState.depLat, newState.depLng, newState.arrLat, newState.arrLng);
+            newState.distance = Math.round(dist);
+            const hours = (dist / 800) + 0.5;
+            newState.duration = Math.round(hours * 60);
+        }
+
+        setSegmentForm(newState);
+    };
 
     // --- RENDER ---
     return (
@@ -188,6 +236,15 @@ export default function FlightForm({ onClose, onSubmit, initialTrip = null, init
 
             {/* BODY */}
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 relative">
+
+                {/* SCANNER MODAL */}
+                {showScanner && (
+                    <BoardingPassScanner
+                        onClose={() => setShowScanner(false)}
+                        onScanSuccess={handleScanSuccess}
+                        accentColor={accentColor}
+                    />
+                )}
 
                 {/* VIEW: TRIP OVERVIEW */}
                 {view === 'TRIP' && (
@@ -266,6 +323,18 @@ export default function FlightForm({ onClose, onSubmit, initialTrip = null, init
                 {/* VIEW: FLIGHT EDIT FORM */}
                 {view === 'FLIGHT' && (
                     <form id="segment-form" onSubmit={saveSegment} className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+                        {/* Scanner trigger */}
+                        <div className="flex justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setShowScanner(true)}
+                                className={`w-full p-3 rounded-xl border border-dashed border-${accentColor}-500/30 bg-${accentColor}-500/5 hover:bg-${accentColor}-500/10 text-${accentColor}-400 flex items-center justify-center gap-2 transition-all group`}
+                            >
+                                <Scan size={18} className="group-hover:scale-110 transition-transform" />
+                                <span className="text-sm font-medium">Scan Boarding Pass to Auto-fill</span>
+                            </button>
+                        </div>
+
                         {/* Departure */}
                         <div className="space-y-4">
                             <h3 className={`text-${accentColor}-400 text-xs font-bold uppercase tracking-widest border-b border-${accentColor}-900/50 pb-2`}>Departure</h3>
