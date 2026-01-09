@@ -171,11 +171,49 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
         }
     };
 
+    const preprocessImage = (imageFile) => {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+
+                // Grayscale & Binarization (Thresholding) to improve OCR
+                for (let i = 0; i < data.length; i += 4) {
+                    // Standard grayscale formula
+                    const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+                    // Binarize (High Contrast) - Threshold at 128
+                    // You can adjust this threshold or use adaptive thresholding if needed
+                    const val = gray > 100 ? 255 : 0;
+
+                    data[i] = val;     // R
+                    data[i + 1] = val; // G
+                    data[i + 2] = val; // B
+                    // Alpha (data[i+3]) remains unchanged
+                }
+                ctx.putImageData(imageData, 0, 0);
+
+                canvas.toBlob((blob) => {
+                    resolve(blob);
+                }, 'image/jpeg', 0.95);
+            };
+            img.onerror = reject;
+            img.src = URL.createObjectURL(imageFile);
+        });
+    };
+
     const processImage = async (imageFile) => {
         setProcessing(true);
         setError(null);
         setStatusMessage("Scanning...");
 
+        // 1. Try Barcode/QR First (Fastest & Most Accurate)
         try {
             const html5QrCode = new Html5Qrcode(readerId + "-hidden");
             const decodedText = await html5QrCode.scanFileV2(imageFile, true);
@@ -194,10 +232,15 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
             console.log("Barcode scan on file failed/not found, trying OCR...", err);
         }
 
-        setStatusMessage("Reading text...");
+        // 2. Optical Character Recognition (OCR)
+        setStatusMessage("Optimizing image...");
         try {
+            // Pre-process image for better OCR results
+            const processedBlob = await preprocessImage(imageFile);
+
+            setStatusMessage("Reading text...");
             const result = await Tesseract.recognize(
-                imageFile,
+                processedBlob, // Use processed image
                 'eng',
                 { logger: m => console.log(m) }
             );
@@ -206,7 +249,7 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
             console.log("OCR Text:", text);
 
             const extracted = parseOCRText(text);
-            if (extracted) {
+            if (extracted && (extracted.depCandidate || extracted.arrCandidate || extracted.flightNumber)) {
                 setStatusMessage("Flight info found!");
                 setTimeout(async () => {
                     onScanSuccess(extracted);
@@ -225,67 +268,87 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
     };
 
     const parseOCRText = (text) => {
-        // Normalize text: replace newlines with spaces, remove special chars
-        const cleanText = text.toUpperCase().replace(/[\r\n]+/g, ' ').replace(/[^A-Z0-9\s]/g, '');
-        console.log("Cleaned Text:", cleanText);
+        // Clean up common OCR artifacts but keep line breaks for proximity search
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        const fullText = lines.join(' ').toUpperCase();
 
-        // Regex for Flight Number (e.g., UA 1234, DL888)
-        // Looks for 2-3 letters followed by 1-4 digits
-        const flightRegex = /\b([A-Z]{2}|[A-Z][0-9]|[0-9][A-Z])\s?([0-9]{3,4})\b/;
+        const keywords = {
+            dep: ['FROM', 'DEP', 'ORIGIN', 'DEPARTURE', 'BOARDING'],
+            arr: ['TO', 'DEST', 'DESTINATION', 'ARRIVAL', 'ARR']
+        };
 
-        // Regex for Date (e.g., 12 JAN, 05 MAR)
-        const dateRegex = /\b([0-9]{1,2})\s?([A-Z]{3})\b/;
+        let result = {
+            depCandidate: "",
+            arrCandidate: "",
+            flightNumber: "",
+            date: "",
+            airline: ""
+        };
 
-        // Regex for Name (Last/First) - Basic attempt
-        // Looks for string followed by slash
-        const nameRegex = /([A-Z]+)\/([A-Z]+)/;
+        // --- Helper: Find value near keyword ---
+        const findValueNearKeyword = (targetKeywords) => {
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].toUpperCase();
+                for (const kw of targetKeywords) {
+                    if (line.includes(kw)) {
+                        // Strategy 1: Look on same line (after keyword)
+                        // e.g. "FROM: LONDON" or "DEP LHR"
+                        const contentAfter = line.split(kw)[1].trim();
+                        // Filter out small noise (like ":")
+                        const cleanAfter = contentAfter.replace(/^[:\.\-\s]+/, '');
+                        if (cleanAfter.length > 2) return cleanAfter;
 
-        const flightMatch = cleanText.match(flightRegex);
-        const dateMatch = cleanText.match(dateRegex);
-        const nameMatch = cleanText.match(nameRegex);
-
-        if (flightMatch) {
-            const airline = flightMatch[1];
-            const number = flightMatch[2];
-
-            let dateStr = "";
-            if (dateMatch) {
-                const day = dateMatch[1].padStart(2, '0');
-                const monthStr = dateMatch[2];
-                const currentYear = new Date().getFullYear();
-                const months = { JAN: '01', FEB: '02', MAR: '03', APR: '04', MAY: '05', JUN: '06', JUL: '07', AUG: '08', SEP: '09', OCT: '10', NOV: '11', DEC: '12' };
-                const m = months[monthStr];
-
-                if (m) {
-                    // Start with current year
-                    let year = currentYear;
-                    const monthIndex = parseInt(m) - 1;
-                    const currentMonth = new Date().getMonth();
-
-                    // Logic for year boundary (e.g. scanning a Jan flight in Dec)
-                    // If scannning JAN in DEC, it's likely next year
-                    if (monthIndex < currentMonth - 6) {
-                        year++;
+                        // Strategy 2: Look at NEXT line (common in boarding passes)
+                        // e.g. "DEPARTURE"
+                        //      "LONDON HEATHROW"
+                        if (lines[i + 1]) {
+                            const nextLine = lines[i + 1].trim();
+                            if (nextLine.length > 2 && !/TIME|DATE|GATE|SEAT/.test(nextLine.toUpperCase())) {
+                                return nextLine;
+                            }
+                        }
                     }
-                    // If scanning DEC in JAN, it's likely last year (though rare for boarding passes)
-                    else if (monthIndex > currentMonth + 6) {
-                        year--;
-                    }
-
-                    dateStr = `${year}-${m}-${day}`;
                 }
             }
+            return "";
+        };
 
-            return {
-                flightNumber: number,
-                airline: airline,
-                date: dateStr,
-                depCode: "", // Hard to reliably extract 3-letter codes without context
-                arrCode: "",
-                name: nameMatch ? `${nameMatch[2]} ${nameMatch[1]}` : ""
-            };
+        result.depCandidate = findValueNearKeyword(keywords.dep);
+        result.arrCandidate = findValueNearKeyword(keywords.arr);
+
+        // --- Global Regex Search (Fallbacks) ---
+
+        // Flight Number: 2 chars + 3-4 digits (e.g., UA 1234, NH008)
+        const flightRegex = /\b([A-Z0-9]{2})\s?([0-9]{3,4})\b/;
+        const flightMatch = fullText.match(flightRegex);
+        if (flightMatch) {
+            result.airline = flightMatch[1];
+            result.flightNumber = flightMatch[1] + flightMatch[2];
         }
-        return null;
+
+        // Date: DDMMM (e.g., 12JAN)
+        const dateRegex = /\b([0-9]{1,2})\s?([A-Z]{3})\b/;
+        const dateMatch = fullText.match(dateRegex);
+        if (dateMatch) {
+            const day = dateMatch[1].padStart(2, '0');
+            const monthStr = dateMatch[2];
+            const currentYear = new Date().getFullYear();
+            const months = { JAN: '01', FEB: '02', MAR: '03', APR: '04', MAY: '05', JUN: '06', JUL: '07', AUG: '08', SEP: '09', OCT: '10', NOV: '11', DEC: '12' };
+            const m = months[monthStr];
+
+            if (m) {
+                // Smart year logic
+                let year = currentYear;
+                const monthIndex = parseInt(m) - 1;
+                const currentMonth = new Date().getMonth();
+                if (monthIndex < currentMonth - 6) year++; // Next year
+                else if (monthIndex > currentMonth + 6) year--; // Prev year
+
+                result.date = `${year}-${m}-${day}`;
+            }
+        }
+
+        return result;
     };
 
     const finalizeScan = (decoded) => {

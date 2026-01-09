@@ -188,36 +188,60 @@ export default function FlightForm({ onClose, onSubmit, initialTrip = null, init
         // Prepare new form state
         let newState = { ...segmentForm };
 
-        // Helper to update airport info
-        const updateAirport = (code, type) => {
-            if (!code) return;
+        // Helper to update airport info from Code (QR)
+        const updateFromCode = (code, type) => {
+            if (!code) return false;
             code = code.toUpperCase();
             const airport = AIRPORTS.find(a => a.iata === code);
             if (airport) {
-                // Use our new reusable logic
-                // But we need to use the helper against the accumulated newState
-                // Since helper accepts (currentForm, type, airport), we can use it.
-                // But helper returns a NEW object.
-                // So:
-                const tempState = { ...newState }; // Snapshot
+                // Use reuse logic
+                const tempState = { ...newState };
                 const updated = updateWithAirportData(tempState, type, airport);
-                // Merge back relevant fields in case helper does extra stuff
                 Object.assign(newState, updated);
+                return true;
             } else {
-                // Set code even if not found
+                // Set code even if not found (QR is authoritative)
                 if (type === 'dep') newState.depCode = code;
                 else newState.arrCode = code;
+                return true;
             }
         };
 
-        if (data.depCode) updateAirport(data.depCode, 'dep');
-        if (data.arrCode) updateAirport(data.arrCode, 'arr');
+        // 1. Departure
+        let depFound = false;
+        if (data.depCode) {
+            depFound = updateFromCode(data.depCode, 'dep');
+        }
+        // If no code or code lookup failed/wasn't present, try Candidate Name (OCR)
+        if (!depFound && data.depCandidate) {
+            // Set the Name field. 
+            // This will flow down to AirportSearchInput -> useEffect -> performSearch -> Dropdown
+            newState.depName = data.depCandidate;
+            // Clear any previous code/lat/lng if we are relying on a new "guess" name
+            newState.depCode = '';
+            newState.depLat = '';
+            newState.depLng = '';
+        }
+
+        // 2. Arrival
+        let arrFound = false;
+        if (data.arrCode) {
+            arrFound = updateFromCode(data.arrCode, 'arr');
+        }
+        if (!arrFound && data.arrCandidate) {
+            newState.arrName = data.arrCandidate;
+            newState.arrCode = '';
+            newState.arrLat = '';
+            newState.arrLng = '';
+        }
+
+        // 3. Other fields
         if (data.airline) newState.airline = data.airline;
         if (data.flightNumber) newState.flightNumber = data.flightNumber;
         if (data.date) newState.date = data.date;
         if (data.seat) newState.note = `Seat: ${data.seat}`;
 
-        // Recalculate Distance/Duration - Duplicating logic for robust state update
+        // Recalculate Distance/Duration if both points are valid (likely only if QR was successful for both)
         if (newState.depLat && newState.depLng && newState.arrLat && newState.arrLng) {
             const dist = calculateDistance(newState.depLat, newState.depLng, newState.arrLat, newState.arrLng);
             newState.distance = Math.round(dist);

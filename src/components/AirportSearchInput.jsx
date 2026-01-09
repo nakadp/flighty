@@ -9,9 +9,15 @@ export default function AirportSearchInput({ label, value, onSelect, accentColor
     const wrapperRef = useRef(null);
 
     // Sync internal query with external value if it changes independently
+    // AND trigger a search if it's a significant change (likely from scanner/external fill)
     useEffect(() => {
-        setQuery(value || '');
-    }, [value]);
+        if (value !== undefined && value !== query) {
+            setQuery(value);
+            if (value.length >= 2) {
+                performSearch(value);
+            }
+        }
+    }, [value]); // query is excluded to avoid loops
 
     useEffect(() => {
         // Click outside to close
@@ -24,15 +30,7 @@ export default function AirportSearchInput({ label, value, onSelect, accentColor
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [wrapperRef]);
 
-    const handleSearch = (e) => {
-        const text = e.target.value;
-        setQuery(text);
-
-        // Notify parent of text change (for custom names)
-        if (onSelect) {
-            onSelect(text, null);
-        }
-
+    const performSearch = (text) => {
         if (!text || text.length < 2) {
             setResults([]);
             setShowDropdown(false);
@@ -45,10 +43,22 @@ export default function AirportSearchInput({ label, value, onSelect, accentColor
             (a.city && a.city.toString().toLowerCase().includes(lower)) ||
             (a.name && a.name.toString().toLowerCase().includes(lower)) ||
             (a.iata && a.iata.toString().toLowerCase().includes(lower))
-        ).slice(0, 50); // Limit to top 50 to avoid lag
+        ).slice(0, 50);
 
         setResults(matches);
         setShowDropdown(true);
+    };
+
+    const handleSearch = (e) => {
+        const text = e.target.value;
+        setQuery(text);
+
+        // Notify parent of text change (for custom names)
+        if (onSelect) {
+            onSelect(text, null);
+        }
+
+        performSearch(text);
     };
 
     const handleSelectItem = (airport) => {
