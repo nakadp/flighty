@@ -18,19 +18,42 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
     const scannerRef = useRef(null);
     const readerId = "boarding-pass-reader";
 
+    const safelyStopCamera = async () => {
+        if (scannerRef.current && scannerRef.current.isScanning) {
+            try {
+                // Race the stop command against a 500ms timeout
+                const stopPromise = scannerRef.current.stop();
+                const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 500));
+
+                await Promise.race([stopPromise, timeoutPromise]);
+                console.log("Camera stop sequence completed");
+            } catch (err) {
+                console.error("Failed to stop camera:", err);
+            }
+        }
+        if (scannerRef.current) {
+            scannerRef.current.clear();
+        }
+    };
+
+    const handleClose = async () => {
+        await safelyStopCamera();
+        onClose();
+    };
+
     // Ensure we only render portal on client and when mounted
     useEffect(() => {
         setMounted(true);
         // Prevent scrolling when modal is open
         document.body.style.overflow = 'hidden';
+
         return () => {
             document.body.style.overflow = 'unset';
-            if (scannerRef.current) {
-                if (scannerRef.current.isScanning) {
-                    scannerRef.current.stop().catch(console.error);
-                }
-                scannerRef.current.clear();
+            // We can't use async in cleanup directly, but we can try to stop it
+            if (scannerRef.current && scannerRef.current.isScanning) {
+                scannerRef.current.stop().catch(console.error);
             }
+            scannerRef.current?.clear();
         };
     }, []);
 
@@ -44,6 +67,7 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
         if (isMobile && mounted) {
             startCamera();
         } else {
+            // Clean up if switching to desktop mode
             if (scannerRef.current && scannerRef.current.isScanning) {
                 scannerRef.current.stop().catch(console.error);
                 setScanning(false);
@@ -53,6 +77,8 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
 
     const startCamera = async () => {
         try {
+            await safelyStopCamera(); // Ensure clean slate
+
             const cameras = await Html5Qrcode.getCameras();
             if (cameras && cameras.length > 0) {
                 const html5QrCode = new Html5Qrcode(readerId);
@@ -60,8 +86,8 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
 
                 const config = {
                     fps: 10,
-                    qrbox: { width: 300, height: 220 },
-                    aspectRatio: 1.0
+                    // qrbox removed to disable default UI overlay (shading and corners)
+                    aspectRatio: 1.77 // 16:9
                 };
 
                 await html5QrCode.start(
@@ -182,9 +208,9 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
             const extracted = parseOCRText(text);
             if (extracted) {
                 setStatusMessage("Flight info found!");
-                setTimeout(() => {
+                setTimeout(async () => {
                     onScanSuccess(extracted);
-                    onClose();
+                    await handleClose();
                 }, 1000);
             } else {
                 setError("Could not identify flight details. Please try again or enter manually.");
@@ -199,12 +225,24 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
     };
 
     const parseOCRText = (text) => {
-        const cleanText = text.toUpperCase().replace(/[\r\n]+/g, ' ');
-        const flightRegex = /([A-Z0-9]{2,3})\s?([0-9]{3,4})/;
-        const dateRegex = /([0-9]{1,2})\s?([A-Z]{3})/;
+        // Normalize text: replace newlines with spaces, remove special chars
+        const cleanText = text.toUpperCase().replace(/[\r\n]+/g, ' ').replace(/[^A-Z0-9\s]/g, '');
+        console.log("Cleaned Text:", cleanText);
+
+        // Regex for Flight Number (e.g., UA 1234, DL888)
+        // Looks for 2-3 letters followed by 1-4 digits
+        const flightRegex = /\b([A-Z]{2}|[A-Z][0-9]|[0-9][A-Z])\s?([0-9]{3,4})\b/;
+
+        // Regex for Date (e.g., 12 JAN, 05 MAR)
+        const dateRegex = /\b([0-9]{1,2})\s?([A-Z]{3})\b/;
+
+        // Regex for Name (Last/First) - Basic attempt
+        // Looks for string followed by slash
+        const nameRegex = /([A-Z]+)\/([A-Z]+)/;
 
         const flightMatch = cleanText.match(flightRegex);
         const dateMatch = cleanText.match(dateRegex);
+        const nameMatch = cleanText.match(nameRegex);
 
         if (flightMatch) {
             const airline = flightMatch[1];
@@ -217,8 +255,24 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
                 const currentYear = new Date().getFullYear();
                 const months = { JAN: '01', FEB: '02', MAR: '03', APR: '04', MAY: '05', JUN: '06', JUL: '07', AUG: '08', SEP: '09', OCT: '10', NOV: '11', DEC: '12' };
                 const m = months[monthStr];
+
                 if (m) {
-                    dateStr = `${currentYear}-${m}-${day}`;
+                    // Start with current year
+                    let year = currentYear;
+                    const monthIndex = parseInt(m) - 1;
+                    const currentMonth = new Date().getMonth();
+
+                    // Logic for year boundary (e.g. scanning a Jan flight in Dec)
+                    // If scannning JAN in DEC, it's likely next year
+                    if (monthIndex < currentMonth - 6) {
+                        year++;
+                    }
+                    // If scanning DEC in JAN, it's likely last year (though rare for boarding passes)
+                    else if (monthIndex > currentMonth + 6) {
+                        year--;
+                    }
+
+                    dateStr = `${year}-${m}-${day}`;
                 }
             }
 
@@ -226,8 +280,9 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
                 flightNumber: number,
                 airline: airline,
                 date: dateStr,
-                depCode: "",
-                arrCode: ""
+                depCode: "", // Hard to reliably extract 3-letter codes without context
+                arrCode: "",
+                name: nameMatch ? `${nameMatch[2]} ${nameMatch[1]}` : ""
             };
         }
         return null;
@@ -236,7 +291,7 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
     const finalizeScan = (decoded) => {
         setStatusMessage("Success!");
         setScanAnimation(true);
-        setTimeout(() => {
+        setTimeout(async () => {
             const leg = decoded.data.legs[0];
             const dateStr = leg.flightDate ? new Date(leg.flightDate).toISOString().split('T')[0] : '';
             const parsed = {
@@ -249,7 +304,7 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
                 name: decoded.data.passengerName
             };
             onScanSuccess(parsed);
-            onClose();
+            await handleClose();
         }, 1000);
     };
 
@@ -277,7 +332,7 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
                         <span className="text-white font-semibold drop-shadow-md">Scan Boarding Pass</span>
                     </div>
                     <button
-                        onClick={onClose}
+                        onClick={handleClose}
                         className="p-2 bg-black/40 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-all border border-white/5"
                     >
                         <X size={20} />
@@ -305,6 +360,7 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
                 )}
 
                 {/* Main Content */}
+                {/* Main Content */}
                 <div className="flex-1 relative bg-black flex flex-col items-center justify-center">
 
                     {isMobile ? (
@@ -316,7 +372,7 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
                             <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center z-10">
                                 {/* Focus Frame */}
                                 <div className={`
-                                      w-[75%] aspect-[3/2] rounded-3xl border-2 relative overflow-hidden transition-all duration-500 box-border
+                                      w-[90%] aspect-[16/9] rounded-3xl border-2 relative overflow-hidden transition-all duration-500 box-border
                                       ${scanAnimation ? `border-${accentColor}-500 shadow-[0_0_60px_${accentColor}/20]` : 'border-white/30'}
                                   `}>
                                     {!processing && (
@@ -417,6 +473,10 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
                     90% { opacity: 1; }
                     100% { top: 100%; opacity: 0; }
                 }
+                /* Hide HTML5-QRCode default overlay elements */
+                #${readerId} img[alt="Info icon"] { display: none !important; }
+                #${readerId} div[style*="position: absolute; top:"] { display: none !important; }
+                #${readerId}__scan_region { display: none !important; } 
             `}</style>
         </div >,
         document.body
