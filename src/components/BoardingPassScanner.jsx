@@ -3,8 +3,10 @@ import { createPortal } from 'react-dom';
 import { X, Upload, Camera, Scan, Aperture, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { Html5Qrcode } from "html5-qrcode";
 import { decode as bcbpDecode } from 'bcbp';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function BoardingPassScanner({ onClose, onScanSuccess, accentColor = 'cyan', apiConfig }) {
+    const { t } = useLanguage();
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [scanning, setScanning] = useState(false);
     const [processing, setProcessing] = useState(false);
@@ -389,7 +391,7 @@ Use null for missing fields. Return ONLY raw JSON, no markdown formatting.`;
                         <div className={`w-8 h-8 rounded-full bg-${accentColor}-500/20 flex items-center justify-center`}>
                             <Scan size={16} className={`text-${accentColor}-400`} />
                         </div>
-                        <span className="text-white font-semibold drop-shadow-md">Scan Boarding Pass</span>
+                        <span className="text-white font-semibold drop-shadow-md">{t('scan_boarding_pass_title')}</span>
                     </div>
                     <button
                         onClick={handleClose}
@@ -403,7 +405,6 @@ Use null for missing fields. Return ONLY raw JSON, no markdown formatting.`;
                 {processing && (
                     <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 px-6 py-2.5 bg-[#1a1a1a] rounded-full flex items-center gap-3 border border-white/10 shadow-lg animate-in slide-in-from-top-4">
                         <Loader2 size={16} className={`animate-spin text-${accentColor}-400`} />
-                        <span className="text-white text-sm font-medium">{statusMessage || "Processing..."}</span>
                         <span className="text-white text-sm font-medium">{statusMessage || t('processing')}</span>
                     </div>
                 )}
@@ -464,7 +465,7 @@ Use null for missing fields. Return ONLY raw JSON, no markdown formatting.`;
                                         <div className={`w-8 h-8 rounded-full bg-${accentColor}-500/20 flex items-center justify-center text-${accentColor}-400 group-hover:scale-110 transition-transform`}>
                                             <Aperture size={18} />
                                         </div>
-                                        <span className="text-white font-medium">{t('capture_and_scan')}</span>
+                                        <span className="text-white font-medium">{t('capture_scan')}</span>
                                     </button>
                                 </div>
                             </div>
