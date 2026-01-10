@@ -32,7 +32,10 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [currency, setCurrency] = useState('USD');
   const [accentColor, setAccentColor] = useState('cyan');
-  const [geminiApiKey, setGeminiApiKey] = useState('');
+  const [apiConfig, setApiConfig] = useState({
+    keys: [],
+    model: 'models/gemini-2.5-flash'
+  });
 
   const [flights, setFlights] = useState([]);
   const [trips, setTrips] = useState([]);
@@ -219,7 +222,17 @@ function App() {
         console.log("User Settings Received:", data);
         if (data.currency) setCurrency(data.currency);
         if (data.accentColor) setAccentColor(data.accentColor);
-        if (data.geminiApiKey) setGeminiApiKey(data.geminiApiKey); // Load API Key
+
+        // Load API Config (New) or fallback to Legacy Key
+        if (data.apiConfig) {
+          setApiConfig(data.apiConfig);
+        } else if (data.geminiApiKey) {
+          // Migration fallback
+          setApiConfig({
+            keys: [data.geminiApiKey],
+            model: 'models/gemini-2.5-flash'
+          });
+        }
 
         // viewMode persistence removed
         // Only change language if it's the User's own view. In shared view, generally keep viewer preference? 
@@ -264,9 +277,9 @@ function App() {
     saveSetting('accentColor', newColor);
   };
 
-  const handleSetGeminiApiKey = (key) => {
-    setGeminiApiKey(key);
-    saveSetting('geminiApiKey', key);
+  const handleUpdateApiConfig = (newConfig) => {
+    setApiConfig(newConfig);
+    saveSetting('apiConfig', newConfig);
   };
 
   const handleSetViewMode = (newMode) => {
@@ -426,8 +439,9 @@ function App() {
 
     } catch (e) {
       console.error("Error saving trip:", e);
-      alert("Error saving: " + e.message);
+      alert(t('error_saving') + e.message);
     }
+
 
     setEditingFlight(null);
     setEditingTrip(null);
@@ -442,7 +456,7 @@ function App() {
       await exportToExcel(user, tripsToExport, flightsToExport);
     } catch (e) {
       console.error("Export Handler Error:", e);
-      alert("Export failed: " + e.message);
+      alert(t('export_failed') + e.message);
     }
   };
 
@@ -464,7 +478,7 @@ function App() {
 
   const handleDeleteTrip = async (tripId) => {
     if (!user) return;
-    if (confirm("Delete this entire trip and all its flights?")) {
+    if (confirm(t('confirm_delete_trip'))) {
       // 1. Delete Trip Doc
       await deleteDoc(doc(db, "trips", tripId));
 
@@ -557,14 +571,14 @@ function App() {
 
             <div>
               <h1 className="text-lg font-black tracking-tighter text-white">SKYTRACE</h1>
-              <div className={`text-[10px] ${getAccentText()} uppercase tracking-[0.2em]`}>{user.displayName || "Private Log"}</div>
+              <div className={`text-[10px] ${getAccentText()} uppercase tracking-[0.2em]`}>{user.displayName || t('private_log')}</div>
             </div>
           </div>
         ) : (
           <div className="flex items-center gap-4 pointer-events-auto w-full md:w-auto">
             <div>
               <h1 className="text-lg font-black tracking-tighter text-white">SKYTRACE</h1>
-              <div className={`text-[10px] ${getAccentText()} uppercase tracking-[0.2em]`}>FLIGHT MAP</div>
+              <div className={`text-[10px] ${getAccentText()} uppercase tracking-[0.2em]`}>{t('flight_map')}</div>
             </div>
           </div>
         )}
@@ -677,8 +691,8 @@ function App() {
           currency={currency}
           setCurrency={handleSetCurrency}
           setLanguage={handleSetLanguage}
-          geminiApiKey={geminiApiKey}
-          setGeminiApiKey={handleSetGeminiApiKey}
+          apiConfig={apiConfig}
+          setApiConfig={handleUpdateApiConfig}
         />
       )}
 
@@ -710,7 +724,7 @@ function App() {
               onClose={handleCloseForm}
               onSubmit={handleSaveTrip}
               accentColor={accentColor}
-              geminiApiKey={geminiApiKey}
+              apiConfig={apiConfig}
             />
           </div>
         </div>

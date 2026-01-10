@@ -51,22 +51,19 @@ const ShareSheet = ({
                 {/* Body */}
                 <div className="flex flex-col md:flex-row gap-6 md:gap-8">
 
-                    {/* Preview Image */}
-                    <div className="w-full md:w-1/2 aspect-video bg-black rounded-xl overflow-hidden border border-white/10 relative group">
+                    {/* Left: Image Preview */}
+                    <div className="w-full md:w-1/2 flex items-center justify-center bg-black/50 rounded-xl overflow-hidden border border-white/10 aspect-video md:aspect-auto">
                         {image ? (
-                            <img src={image} alt="Preview" className="w-full h-full object-cover" />
+                            <img src={image} alt="Flight Map Preview" className="w-full h-full object-contain" />
                         ) : (
-                            <div className="w-full h-full flex items-center justify-center text-slate-500">
-                                <div className="animate-pulse">Generating Preview...</div>
+                            <div className="flex flex-col items-center justify-center text-slate-500 gap-2">
+                                <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-600 border-t-slate-400"></div>
+                                <span className="text-xs">{t('generating_preview') || "Generating preview..."}</span>
                             </div>
                         )}
-                        {/* Tag */}
-                        <div className={`absolute top-3 right-3 px-2 py-1 rounded bg-${accentColor}-600 text-[10px] font-bold uppercase tracking-wider text-white shadow-lg`}>
-                            Preview
-                        </div>
                     </div>
 
-                    {/* Actions Grid */}
+                    {/* Right: Actions */}
                     <div className="w-full md:w-1/2 flex flex-col justify-center gap-4">
 
                         <div className="grid grid-cols-2 gap-3">
@@ -95,9 +92,10 @@ const ShareSheet = ({
 
                     </div>
                 </div>
-
             </div>
+
         </div>
+
     );
 };
 

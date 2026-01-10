@@ -18,7 +18,7 @@ export default function ExportModal({ onClose, onExport, filterStats, accentColo
                 <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
                     <h3 className="text-lg font-bold text-white flex items-center gap-2">
                         <FileSpreadsheet className={`text-${accentColor}-400`} size={20} />
-                        {t('export_data') || "Export Data"}
+                        {t('export_data')}
                     </h3>
                     <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
                         <X size={20} />
@@ -38,9 +38,9 @@ export default function ExportModal({ onClose, onExport, filterStats, accentColo
                                 className={`w-5 h-5 accent-${accentColor}-500`}
                             />
                             <div className="flex-1">
-                                <div className={`font-bold text-white group-hover:text-${accentColor}-400 transition-colors`}>Export Filtered View</div>
+                                <div className={`font-bold text-white group-hover:text-${accentColor}-400 transition-colors`}>{t('export_filtered_view')}</div>
                                 <div className="text-xs text-slate-400 mt-1">
-                                    Current filters: <span className="text-white">{filterStats.year}, {filterStats.country}</span>
+                                    {t('current_filters')}: <span className="text-white">{filterStats.year}, {filterStats.country}</span>
                                 </div>
                             </div>
                             <Filter size={20} className={`text-slate-500 group-hover:text-${accentColor}-400`} />
@@ -56,9 +56,9 @@ export default function ExportModal({ onClose, onExport, filterStats, accentColo
                                 className={`w-5 h-5 accent-${accentColor}-500`}
                             />
                             <div className="flex-1">
-                                <div className={`font-bold text-white group-hover:text-${accentColor}-400 transition-colors`}>Export All Data</div>
+                                <div className={`font-bold text-white group-hover:text-${accentColor}-400 transition-colors`}>{t('export_all_data')}</div>
                                 <div className="text-xs text-slate-400 mt-1">
-                                    Includes all flights and trips ever recorded.
+                                    {t('export_all_desc')}
                                 </div>
                             </div>
                             <FileSpreadsheet size={20} className={`text-slate-500 group-hover:text-${accentColor}-400`} />
@@ -66,7 +66,7 @@ export default function ExportModal({ onClose, onExport, filterStats, accentColo
                     </div>
 
                     <div className={`bg-${accentColor}-500/10 border border-${accentColor}-500/20 rounded-lg p-3 text-xs text-${accentColor}-400/80`}>
-                        <p>The exported Excel file will include your user profile summary at the top, followed by a detailed list of trips and flights.</p>
+                        <p>{t('export_note')}</p>
                     </div>
                 </div>
 
@@ -76,14 +76,14 @@ export default function ExportModal({ onClose, onExport, filterStats, accentColo
                         onClick={onClose}
                         className="px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors text-sm font-medium"
                     >
-                        {t('cancel') || "Cancel"}
+                        {t('cancel')}
                     </button>
                     <button
                         onClick={handleExport}
                         className={`flex items-center gap-2 px-6 py-2 rounded-lg bg-${accentColor}-600 text-white hover:bg-${accentColor}-500 transition-colors text-sm font-bold shadow-lg hover:shadow-${accentColor}-500/20`}
                     >
                         <Download size={16} />
-                        {t('export') || "Export"}
+                        {t('export')}
                     </button>
                 </div>
 

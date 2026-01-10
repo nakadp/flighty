@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Palette, Globe, LogOut, ChevronRight, ArrowLeft, Database, Download, Lock } from 'lucide-react';
+import { X, User, Palette, Globe, LogOut, ChevronRight, ArrowLeft, Database, Download, Lock, Plus } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../firebase'; // Import db if needed for direct fetching, otherwise use props
@@ -8,28 +8,35 @@ import { CURRENCIES } from '../data/currencies';
 // import * as XLSX from 'xlsx'; // Not needed if using helper, but wait, exportData uses it. SettingsModal doesn't need it direct if using helper.
 import { exportToExcel } from '../utils/exportData';
 
-function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, setViewMode, currency, setCurrency, setLanguage, geminiApiKey, setGeminiApiKey }) {
+function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, setViewMode, currency, setCurrency, setLanguage, apiConfig, setApiConfig }) {
     const { t, language } = useLanguage();
 
     // Local state for manual save
     const [localAccentColor, setLocalAccentColor] = useState(accentColor);
     const [localCurrency, setLocalCurrency] = useState(currency);
     const [localLanguage, setLocalLanguage] = useState(language);
-    const [localGeminiApiKey, setLocalGeminiApiKey] = useState(geminiApiKey);
+    const [localApiConfig, setLocalApiConfig] = useState(apiConfig || { keys: [], model: 'models/gemini-2.5-flash' });
 
     // Initialize local state when props change (in case of external updates or first load)
     useEffect(() => {
         setLocalAccentColor(accentColor);
         setLocalCurrency(currency);
         setLocalLanguage(language);
-        setLocalGeminiApiKey(geminiApiKey);
-    }, [accentColor, currency, language, geminiApiKey]);
+        // Ensure valid structure for apiConfig
+        if (apiConfig && Array.isArray(apiConfig.keys)) {
+            setLocalApiConfig(apiConfig);
+        } else {
+            // Fallback/Migration if coming from old single key or empty
+            // logic handled in parent App.jsx ideally, but here for safety
+            setLocalApiConfig({ keys: [], model: 'models/gemini-2.5-flash', ...apiConfig });
+        }
+    }, [accentColor, currency, language, apiConfig]);
 
     const handleSave = () => {
         setAccentColor(localAccentColor);
         setCurrency(localCurrency);
         setLanguage(localLanguage);
-        setGeminiApiKey(localGeminiApiKey);
+        setApiConfig(localApiConfig);
         onClose();
     };
 
@@ -84,7 +91,7 @@ function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, s
         { id: 'general', icon: Globe, label: t('general') },
         { id: 'appearance', icon: Palette, label: t('appearance') },
         { id: 'api', icon: Lock, label: "API" },
-        { id: 'data', icon: Database, label: t('data') || "Data" },
+        { id: 'data', icon: Database, label: t('data') },
     ];
 
     const currentTab = tabs.find(t => t.id === activeTab);
@@ -161,7 +168,7 @@ function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, s
 
                     {/* CURRENCY SELECTOR */}
                     <div className="space-y-4">
-                        <label className="text-sm font-medium text-slate-400 uppercase tracking-wider">{t('currency') || "Currency"}</label>
+                        <label className="text-sm font-medium text-slate-400 uppercase tracking-wider">{t('currency')}</label>
                         <select
                             value={localCurrency}
                             onChange={(e) => setLocalCurrency(e.target.value)}
@@ -208,33 +215,82 @@ function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, s
             {activeTab === 'api' && (
                 <div className="space-y-8">
                     <div>
-                        <h3 className="hidden md:block text-2xl font-bold text-white mb-6">API Configuration</h3>
+                        <h3 className="hidden md:block text-2xl font-bold text-white mb-6">{t('api_configuration')}</h3>
                         <p className="text-slate-400 text-sm mb-4">
-                            Configure external API keys for enhanced features. Keys are stored securely in your private user profile.
+                            {t('api_config_desc')}
                         </p>
                     </div>
 
-                    <div className="space-y-4">
-                        <label className="text-sm font-medium text-slate-400 uppercase tracking-wider">Gemini API Key</label>
-                        <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
-                                <Lock size={16} />
-                            </div>
-                            <input
-                                type="password"
-                                value={localGeminiApiKey || ''}
-                                onChange={(e) => setLocalGeminiApiKey(e.target.value)}
-                                placeholder="Enter your Gemini API Key"
-                                className={`w-full bg-slate-900 border border-slate-700 text-white rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-${localAccentColor}-500 transition-colors font-mono tracking-widest`}
-                            />
+                    <div className="space-y-6">
+                        {/* Model Selection */}
+                        <div className="space-y-4">
+                            <label className="text-sm font-medium text-slate-400 uppercase tracking-wider">{t('gemini_model')}</label>
+                            <select
+                                value={localApiConfig.model}
+                                onChange={(e) => setLocalApiConfig(prev => ({ ...prev, model: e.target.value }))}
+                                className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-cyan-500 appearance-none cursor-pointer"
+                            >
+                                <option value="models/gemini-2.5-flash">Gemini 2.5 Flash (Recommended)</option>
+                                <option value="models/gemini-2.5-pro">Gemini 2.5 Pro</option>
+                                <option value="models/gemini-2.0-flash">Gemini 2.0 Flash</option>
+                                <option value="models/gemma-3-4b-it">Gemma 3 4B</option>
+                            </select>
+                            <p className="text-xs text-slate-500">
+                                {t('gemini_model_desc')}
+                            </p>
                         </div>
-                        <p className="text-xs text-slate-500">
-                            Required for AI-powered Boarding Pass scanning with Gemini 2.5 Flash.
-                            <br />
-                            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className={`text-${localAccentColor}-400 hover:underline`}>
-                                Get a key from Google AI Studio
-                            </a>
-                        </p>
+
+                        {/* API Keys Management */}
+                        <div className="space-y-4">
+                            <label className="text-sm font-medium text-slate-400 uppercase tracking-wider">{t('gemini_api_keys')}</label>
+
+                            <div className="space-y-3">
+                                {localApiConfig.keys.map((key, index) => (
+                                    <div key={index} className="flex gap-2">
+                                        <div className="relative flex-1">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                                                <Lock size={16} />
+                                            </div>
+                                            <input
+                                                type="password"
+                                                value={key}
+                                                onChange={(e) => {
+                                                    const newKeys = [...localApiConfig.keys];
+                                                    newKeys[index] = e.target.value;
+                                                    setLocalApiConfig(prev => ({ ...prev, keys: newKeys }));
+                                                }}
+                                                className={`w-full bg-slate-900 border border-slate-700 text-white rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-${localAccentColor}-500 transition-colors font-mono tracking-widest`}
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                const newKeys = localApiConfig.keys.filter((_, i) => i !== index);
+                                                setLocalApiConfig(prev => ({ ...prev, keys: newKeys }));
+                                            }}
+                                            className="p-3 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors"
+                                        >
+                                            <X size={18} />
+                                        </button>
+                                    </div>
+                                ))}
+
+                                <button
+                                    onClick={() => setLocalApiConfig(prev => ({ ...prev, keys: [...prev.keys, ''] }))}
+                                    className={`w-full py-3 rounded-xl border border-dashed border-white/20 text-slate-400 hover:text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-2`}
+                                >
+                                    <Plus size={16} />
+                                    <span>{t('add_api_key')}</span>
+                                </button>
+                            </div>
+
+                            <p className="text-xs text-slate-500">
+                                {t('api_key_help')}
+                                <br />
+                                <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className={`text-${localAccentColor}-400 hover:underline`}>
+                                    {t('get_api_key')}
+                                </a>
+                            </p>
+                        </div>
                     </div>
 
                 </div>
@@ -244,22 +300,22 @@ function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, s
             {activeTab === 'data' && (
                 <div className="space-y-8">
                     <div>
-                        <h3 className="hidden md:block text-2xl font-bold text-white mb-6">{t('data') || "Data"}</h3>
+                        <h3 className="hidden md:block text-2xl font-bold text-white mb-6">{t('data')}</h3>
                     </div>
 
                     <div className="space-y-4">
                         <div className="p-6 rounded-2xl bg-white/5 border border-white/10 flex flex-col items-start gap-4">
                             <div className="flex items-center gap-3 text-lg font-medium text-white">
                                 <Database size={24} className={`text-${localAccentColor}-400`} />
-                                Export Data
+                                {t('export_data')}
                             </div>
-                            <p className="text-slate-400 text-sm">Download your complete flight history as an Excel spreadsheet (.xlsx).</p>
+                            <p className="text-slate-400 text-sm">{t('export_desc')}</p>
                             <button
                                 onClick={handleExportFlights}
                                 className={`flex items-center gap-2 px-6 py-3 rounded-xl bg-${localAccentColor}-600 text-white hover:bg-${localAccentColor}-500 transition-colors font-medium`}
                             >
                                 <Download size={18} />
-                                {t('export_excel') || "Export to Excel"}
+                                {t('export_excel')}
                             </button>
                         </div>
                     </div>
@@ -274,13 +330,13 @@ function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, s
                 onClick={onClose}
                 className="px-6 py-2 rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 transition-colors font-medium"
             >
-                {t('cancel') || "Cancel"}
+                {t('cancel')}
             </button>
             <button
                 onClick={handleSave}
                 className={`px-6 py-2 rounded-xl bg-${localAccentColor}-600 text-white hover:bg-${localAccentColor}-500 transition-colors font-medium shadow-lg shadow-${localAccentColor}-900/20`}
             >
-                {t('save') || "Save"}
+                {t('save')}
             </button>
         </div>
     );

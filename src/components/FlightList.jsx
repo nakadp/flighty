@@ -3,8 +3,10 @@ import { X, Plane, Trash2, Edit2, Calendar, Layers, Map as MapIcon, ChevronDown,
 import { formatDistance, calculateDistance } from '../utils/calculations';
 import { CURRENCIES } from '../data/currencies';
 import ExportModal from './ExportModal';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function FlightList({ flights, trips = [], currency = 'USD', onClose, onDelete, onDeleteTrip, onEdit, onExportData, accentColor = 'cyan' }) {
+    const { t } = useLanguage();
     const [filterYear, setFilterYear] = useState('All');
     const [filterCountry, setFilterCountry] = useState('All');
     const [expandedTrips, setExpandedTrips] = useState(new Set());
@@ -183,7 +185,7 @@ export default function FlightList({ flights, trips = [], currency = 'USD', onCl
 
         } catch (e) {
             console.error(e);
-            alert("Export failed");
+            alert(t('export_failed') || "Export failed");
         }
     };
 
@@ -209,16 +211,16 @@ export default function FlightList({ flights, trips = [], currency = 'USD', onCl
                     <div className="flex justify-between items-center">
                         <h2 className="text-base font-bold text-white flex items-center gap-2">
                             <Layers className={`text-${accentColor}-400`} size={18} />
-                            Flight Log
+                            {t('flight_log')}
                         </h2>
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={handleExportClick}
                                 className={`flex items-center gap-1 px-3 py-1.5 rounded-lg bg-${accentColor}-500/10 text-${accentColor}-400 hover:bg-${accentColor}-500/20 text-xs font-medium border border-${accentColor}-500/20 transition-all`}
-                                title="Export to Excel"
+                                title={t('export')}
                             >
                                 <Download size={14} />
-                                <span className="hidden sm:inline">Export</span>
+                                <span className="hidden sm:inline">{t('export')}</span>
                             </button>
                             <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
                                 <X size={18} />
@@ -228,20 +230,20 @@ export default function FlightList({ flights, trips = [], currency = 'USD', onCl
 
                     <div className="flex flex-col md:flex-row gap-2">
                         <select value={filterYear} onChange={(e) => setFilterYear(e.target.value)} className={`bg-black/50 border border-white/10 text-xs text-white rounded px-2 py-1.5 focus:outline-none focus:border-${accentColor}-500 w-full md:w-auto`}>
-                            <option value="All">All Years</option>
+                            <option value="All">{t('all_years')}</option>
                             {years.map(y => <option key={y} value={y}>{y}</option>)}
                         </select>
 
                         <select value={filterCountry} onChange={(e) => setFilterCountry(e.target.value)} className={`bg-black/50 border border-white/10 text-xs text-white rounded px-2 py-1.5 focus:outline-none focus:border-${accentColor}-500 w-full md:w-auto md:max-w-[150px]`}>
-                            <option value="All">All Countries</option>
+                            <option value="All">{t('all_countries')}</option>
                             {countries.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                     </div>
 
                     <div className="flex flex-wrap gap-4 text-[10px] uppercase tracking-wider text-slate-400 font-mono">
-                        <div><span className="text-white font-bold">{stats.count}</span> Flights</div>
+                        <div><span className="text-white font-bold">{stats.count}</span> {t('flights')}</div>
                         <div><span className={`text-${accentColor}-400 font-bold`}>{formatDistance(stats.distance)}</span> km</div>
-                        <div><span className="text-white font-bold">{stats.countries}</span> Countries</div>
+                        <div><span className="text-white font-bold">{stats.countries}</span> {t('countries')}</div>
                     </div>
                 </div>
 
@@ -249,7 +251,7 @@ export default function FlightList({ flights, trips = [], currency = 'USD', onCl
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-3">
                     {filteredItems.length === 0 ? (
                         <div className="text-center py-12 text-slate-500 text-sm">
-                            <p>No flights found.</p>
+                            <p>{t('no_flights_found')}</p>
                         </div>
                     ) : (
                         filteredItems.map((item, idx) => {
@@ -263,7 +265,7 @@ export default function FlightList({ flights, trips = [], currency = 'USD', onCl
                                         <div className="flex justify-between items-center mb-2 px-1">
                                             <div className="flex items-center gap-2">
                                                 <div className={`w-1 h-1 rounded-full bg-${accentColor}-400`}></div>
-                                                <div className="text-sm font-bold text-white uppercase tracking-wider">{trip.name || 'Untitled Trip'}</div>
+                                                <div className="text-sm font-bold text-white uppercase tracking-wider">{trip.name || t('untitled_trip')}</div>
                                                 <div className="text-[10px] text-slate-500 bg-white/5 px-1.5 py-0.5 rounded border border-white/5">{trip.type}</div>
                                             </div>
                                             <div className="flex items-center gap-3">
@@ -287,7 +289,7 @@ export default function FlightList({ flights, trips = [], currency = 'USD', onCl
                                                 <FlightCard key={flight.id} flight={flight} onDelete={onDelete} onEdit={onEdit} isTripChild accentColor={accentColor} />
                                             ))}
                                             {item.flights.length === 0 && (
-                                                <div className="text-[10px] text-slate-600 italic py-1">No flights in this trip</div>
+                                                <div className="text-[10px] text-slate-600 italic py-1">{t('no_flights_in_trip')}</div>
                                             )}
                                         </div>
                                     </div>

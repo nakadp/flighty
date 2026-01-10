@@ -4,7 +4,7 @@ import { X, Upload, Camera, Scan, Aperture, CheckCircle, AlertCircle, Loader2 } 
 import { Html5Qrcode } from "html5-qrcode";
 import { decode as bcbpDecode } from 'bcbp';
 
-export default function BoardingPassScanner({ onClose, onScanSuccess, accentColor = 'cyan', geminiApiKey }) {
+export default function BoardingPassScanner({ onClose, onScanSuccess, accentColor = 'cyan', apiConfig }) {
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [scanning, setScanning] = useState(false);
     const [processing, setProcessing] = useState(false);
@@ -183,8 +183,8 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
         });
     };
 
-    const callGeminiAPI = async (imageBlob) => {
-        if (!geminiApiKey) {
+    const callGeminiAPI = async (imageBlob, key, model) => {
+        if (!key) {
             throw new Error("API Key Missing");
         }
 
@@ -194,7 +194,9 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
 Fields: airline, flightNumber, date (YYYY-MM-DD), depCode (IATA), depCity, arrCode (IATA), arrCity, seat, passengerName.
 Use null for missing fields. Return ONLY raw JSON, no markdown formatting.`;
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
+        // Use selected model or fallback
+        const modelName = model || "models/gemini-2.5-flash";
+        const url = `https://generativelanguage.googleapis.com/v1beta/${modelName}:generateContent?key=${key}`;
 
         const payload = {
             contents: [{
@@ -224,7 +226,7 @@ Use null for missing fields. Return ONLY raw JSON, no markdown formatting.`;
 
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.error?.message || "Gemini API request failed");
+            throw new Error(errorData.error?.message || `Gemini API request failed (${response.status})`);
         }
 
         const data = await response.json();
@@ -261,8 +263,16 @@ Use null for missing fields. Return ONLY raw JSON, no markdown formatting.`;
             console.log("Barcode scan on file failed/not found, trying AI...", err);
         }
 
-        // 2. Gemini AI Scan
-        if (!geminiApiKey) {
+        // 2. Gemini AI Scan with Multi-key Failover
+        // Prepare keys
+        let keysToTry = [];
+        if (apiConfig && Array.isArray(apiConfig.keys) && apiConfig.keys.length > 0) {
+            keysToTry = apiConfig.keys.filter(k => k && k.trim() !== "");
+        } else if (apiConfig && apiConfig.geminiApiKey) { // Fallback check just in case
+            keysToTry = [apiConfig.geminiApiKey];
+        }
+
+        if (keysToTry.length === 0) {
             setError("Gemini API Key is missing. Please configure it in Settings -> API.");
             setProcessing(false);
             setScanAnimation(false);
@@ -270,20 +280,43 @@ Use null for missing fields. Return ONLY raw JSON, no markdown formatting.`;
         }
 
         setStatusMessage("Analyzing with Gemini AI...");
-        try {
-            // Need a Blob for the API helper
-            // If imageFile is File (from input), it's already a Blob.
-            // If from canvas capture, it's also a Blob.
-            const result = await callGeminiAPI(imageFile);
-            console.log("Gemini Result:", result);
 
-            if (result && (result.flightNumber || result.depCode || result.arrCode)) {
+        let lastError = null;
+        let successResult = null;
+        const modelToUse = apiConfig?.model || "models/gemini-2.5-flash";
+
+        // Iterative Failover
+        for (let i = 0; i < keysToTry.length; i++) {
+            const currentKey = keysToTry[i];
+            console.log(`Trying API Key ${i + 1}/${keysToTry.length} with model ${modelToUse}...`);
+
+            try {
+                const result = await callGeminiAPI(imageFile, currentKey, modelToUse);
+                console.log("Gemini Result:", result);
+
+                if (result && (result.flightNumber || result.depCode || result.arrCode)) {
+                    successResult = result;
+                    break; // Success! Stop trying keys.
+                }
+            } catch (err) {
+                console.warn(`Key ${i + 1} failed:`, err.message);
+                lastError = err;
+                // If it's the last key, we'll handle the error outside loop
+                if (i < keysToTry.length - 1) {
+                    setStatusMessage(`Retrying with backup key (${i + 2}/${keysToTry.length})...`);
+                }
+            }
+        }
+
+        try {
+            if (successResult) {
                 setStatusMessage("Flight info found!");
+                const result = successResult;
 
                 // Map Gemini result to our internal format
                 const extracted = {
                     depCode: result.depCode,
-                    depCandidate: result.depCity || result.depCode, // Fallback for name search
+                    depCandidate: result.depCity || result.depCode,
                     arrCode: result.arrCode,
                     arrCandidate: result.arrCity || result.arrCode,
                     airline: result.airline,
@@ -298,12 +331,17 @@ Use null for missing fields. Return ONLY raw JSON, no markdown formatting.`;
                     await handleClose();
                 }, 1000);
             } else {
-                setError("Could not identify flight details. Please try again or enter manually.");
+                // Determine error message
+                const finalMessage = lastError ? `AI Scan failed: ${lastError.message}` : "Could not identify flight details.";
+                setError(finalMessage);
+                if (keysToTry.length > 1 && lastError) {
+                    setError("All API keys failed. Last error: " + lastError.message);
+                }
             }
 
         } catch (err) {
-            console.error("Gemini Scan Error:", err);
-            setError("AI Scan failed: " + err.message);
+            console.error("Gemini Scan Processing Error:", err);
+            setError("Processing failed: " + err.message);
         } finally {
             setProcessing(false);
             setScanAnimation(false);
@@ -366,6 +404,7 @@ Use null for missing fields. Return ONLY raw JSON, no markdown formatting.`;
                     <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 px-6 py-2.5 bg-[#1a1a1a] rounded-full flex items-center gap-3 border border-white/10 shadow-lg animate-in slide-in-from-top-4">
                         <Loader2 size={16} className={`animate-spin text-${accentColor}-400`} />
                         <span className="text-white text-sm font-medium">{statusMessage || "Processing..."}</span>
+                        <span className="text-white text-sm font-medium">{statusMessage || t('processing')}</span>
                     </div>
                 )}
 
@@ -410,7 +449,7 @@ Use null for missing fields. Return ONLY raw JSON, no markdown formatting.`;
                                 <div className="mt-12 text-center pointer-events-auto space-y-6">
                                     <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black/40 border border-white/5 backdrop-blur-md">
                                         <Scan size={14} className="text-white/60" />
-                                        <p className="text-white/80 text-xs font-medium tracking-wide uppercase">Align Boarding Pass</p>
+                                        <p className="text-white/80 text-xs font-medium tracking-wide uppercase">{t('align_boarding_pass')}</p>
                                     </div>
 
                                     <button
@@ -425,7 +464,7 @@ Use null for missing fields. Return ONLY raw JSON, no markdown formatting.`;
                                         <div className={`w-8 h-8 rounded-full bg-${accentColor}-500/20 flex items-center justify-center text-${accentColor}-400 group-hover:scale-110 transition-transform`}>
                                             <Aperture size={18} />
                                         </div>
-                                        <span className="text-white font-medium">Capture & Scan</span>
+                                        <span className="text-white font-medium">{t('capture_and_scan')}</span>
                                     </button>
                                 </div>
                             </div>
@@ -451,8 +490,8 @@ Use null for missing fields. Return ONLY raw JSON, no markdown formatting.`;
                                     )}
                                 </div>
                                 <div className="text-center space-y-1.5 z-10">
-                                    <h4 className="text-white font-semibold text-lg tracking-tight group-hover:text-white transition-colors">Upload Boarding Pass</h4>
-                                    <p className="text-zinc-500 text-sm group-hover:text-zinc-400 transition-colors">Drag & drop or click to browse</p>
+                                    <h4 className="text-white font-semibold text-lg tracking-tight group-hover:text-white transition-colors">{t('upload_boarding_pass')}</h4>
+                                    <p className="text-zinc-500 text-sm group-hover:text-zinc-400 transition-colors">{t('drag_drop_or_click_to_browse')}</p>
                                 </div>
 
                                 {/* Hover Glow Effect */}
