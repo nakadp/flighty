@@ -32,6 +32,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [currency, setCurrency] = useState('USD');
   const [accentColor, setAccentColor] = useState('cyan');
+  const [geminiApiKey, setGeminiApiKey] = useState('');
 
   const [flights, setFlights] = useState([]);
   const [trips, setTrips] = useState([]);
@@ -218,6 +219,8 @@ function App() {
         console.log("User Settings Received:", data);
         if (data.currency) setCurrency(data.currency);
         if (data.accentColor) setAccentColor(data.accentColor);
+        if (data.geminiApiKey) setGeminiApiKey(data.geminiApiKey); // Load API Key
+
         // viewMode persistence removed
         // Only change language if it's the User's own view. In shared view, generally keep viewer preference? 
         // Or if we want to show exactly what they see. 
@@ -244,9 +247,7 @@ function App() {
     try {
       const userRef = doc(db, "users", user.uid);
       await setDoc(userRef, {
-        [key]: value,
-        email: user.email, // Keep these updated just in case
-        displayName: user.displayName
+        [key]: value
       }, { merge: true });
     } catch (e) {
       console.error(`Error saving setting ${key}:`, e);
@@ -261,6 +262,11 @@ function App() {
   const handleSetAccentColor = (newColor) => {
     setAccentColor(newColor);
     saveSetting('accentColor', newColor);
+  };
+
+  const handleSetGeminiApiKey = (key) => {
+    setGeminiApiKey(key);
+    saveSetting('geminiApiKey', key);
   };
 
   const handleSetViewMode = (newMode) => {
@@ -671,6 +677,8 @@ function App() {
           currency={currency}
           setCurrency={handleSetCurrency}
           setLanguage={handleSetLanguage}
+          geminiApiKey={geminiApiKey}
+          setGeminiApiKey={handleSetGeminiApiKey}
         />
       )}
 
@@ -702,6 +710,7 @@ function App() {
               onClose={handleCloseForm}
               onSubmit={handleSaveTrip}
               accentColor={accentColor}
+              geminiApiKey={geminiApiKey}
             />
           </div>
         </div>

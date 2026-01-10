@@ -6,7 +6,7 @@ import BoardingPassScanner from './BoardingPassScanner';
 import { calculateDistance } from '../utils/calculations';
 import AirportSearchInput from './AirportSearchInput';
 
-export default function FlightForm({ onClose, onSubmit, initialTrip = null, initialData = null, existingFlights = [], accentColor = 'cyan' }) {
+export default function FlightForm({ onClose, onSubmit, initialTrip = null, initialData = null, existingFlights = [], accentColor = 'cyan', geminiApiKey }) {
     const { t, language } = useLanguage();
 
     // Mode: 'TRIP' (Overview) or 'FLIGHT' (Editing a specific segment)
@@ -287,6 +287,7 @@ export default function FlightForm({ onClose, onSubmit, initialTrip = null, init
                         onClose={() => setShowScanner(false)}
                         onScanSuccess={handleScanSuccess}
                         accentColor={accentColor}
+                        geminiApiKey={geminiApiKey}
                     />
                 )}
 

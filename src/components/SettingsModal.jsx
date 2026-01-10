@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Palette, Globe, LogOut, ChevronRight, ArrowLeft, Database, Download } from 'lucide-react';
+import { X, User, Palette, Globe, LogOut, ChevronRight, ArrowLeft, Database, Download, Lock } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../firebase'; // Import db if needed for direct fetching, otherwise use props
@@ -8,7 +8,7 @@ import { CURRENCIES } from '../data/currencies';
 // import * as XLSX from 'xlsx'; // Not needed if using helper, but wait, exportData uses it. SettingsModal doesn't need it direct if using helper.
 import { exportToExcel } from '../utils/exportData';
 
-function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, setViewMode, currency, setCurrency, setLanguage }) {
+function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, setViewMode, currency, setCurrency, setLanguage, geminiApiKey, setGeminiApiKey }) {
     const { t, language } = useLanguage();
 
     // On desktop: always 'account' (or whatever). On mobile: null initially (showing menu)
@@ -65,6 +65,7 @@ function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, s
         { id: 'account', icon: User, label: t('account') },
         { id: 'general', icon: Globe, label: t('general') },
         { id: 'appearance', icon: Palette, label: t('appearance') },
+        { id: 'api', icon: Lock, label: "API" },
         { id: 'data', icon: Database, label: t('data') || "Data" },
     ];
 
@@ -180,6 +181,42 @@ function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, s
                                 </button>
                             ))}
                         </div>
+                    </div>
+
+                </div>
+            )}
+
+            {/* API TAB */}
+            {activeTab === 'api' && (
+                <div className="space-y-8">
+                    <div>
+                        <h3 className="hidden md:block text-2xl font-bold text-white mb-6">API Configuration</h3>
+                        <p className="text-slate-400 text-sm mb-4">
+                            Configure external API keys for enhanced features. Keys are stored securely in your private user profile.
+                        </p>
+                    </div>
+
+                    <div className="space-y-4">
+                        <label className="text-sm font-medium text-slate-400 uppercase tracking-wider">Gemini API Key</label>
+                        <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                                <Lock size={16} />
+                            </div>
+                            <input
+                                type="password"
+                                value={geminiApiKey || ''}
+                                onChange={(e) => setGeminiApiKey(e.target.value)}
+                                placeholder="Enter your Gemini API Key"
+                                className={`w-full bg-slate-900 border border-slate-700 text-white rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-${accentColor}-500 transition-colors font-mono tracking-widest`}
+                            />
+                        </div>
+                        <p className="text-xs text-slate-500">
+                            Required for AI-powered Boarding Pass scanning with Gemini 2.5 Flash.
+                            <br />
+                            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className={`text-${accentColor}-400 hover:underline`}>
+                                Get a key from Google AI Studio
+                            </a>
+                        </p>
                     </div>
 
                 </div>

@@ -3,9 +3,8 @@ import { createPortal } from 'react-dom';
 import { X, Upload, Camera, Scan, Aperture, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { Html5Qrcode } from "html5-qrcode";
 import { decode as bcbpDecode } from 'bcbp';
-import Tesseract from 'tesseract.js';
 
-export default function BoardingPassScanner({ onClose, onScanSuccess, accentColor = 'cyan' }) {
+export default function BoardingPassScanner({ onClose, onScanSuccess, accentColor = 'cyan', geminiApiKey }) {
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [scanning, setScanning] = useState(false);
     const [processing, setProcessing] = useState(false);
@@ -171,41 +170,71 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
         }
     };
 
-    const preprocessImage = (imageFile) => {
+    // --- GEMINI API HELPERS ---
+    const blobToBase64 = (blob) => {
         return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const data = imageData.data;
-
-                // Grayscale & Binarization (Thresholding) to improve OCR
-                for (let i = 0; i < data.length; i += 4) {
-                    // Standard grayscale formula
-                    const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-                    // Binarize (High Contrast) - Threshold at 128
-                    // You can adjust this threshold or use adaptive thresholding if needed
-                    const val = gray > 100 ? 255 : 0;
-
-                    data[i] = val;     // R
-                    data[i + 1] = val; // G
-                    data[i + 2] = val; // B
-                    // Alpha (data[i+3]) remains unchanged
-                }
-                ctx.putImageData(imageData, 0, 0);
-
-                canvas.toBlob((blob) => {
-                    resolve(blob);
-                }, 'image/jpeg', 0.95);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64String = reader.result.split(',')[1];
+                resolve(base64String);
             };
-            img.onerror = reject;
-            img.src = URL.createObjectURL(imageFile);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
         });
+    };
+
+    const callGeminiAPI = async (imageBlob) => {
+        if (!geminiApiKey) {
+            throw new Error("API Key Missing");
+        }
+
+        const base64Image = await blobToBase64(imageBlob);
+
+        const prompt = `Extract flight details from this boarding pass image into a single JSON object.
+Fields: airline, flightNumber, date (YYYY-MM-DD), depCode (IATA), depCity, arrCode (IATA), arrCity, seat, passengerName.
+Use null for missing fields. Return ONLY raw JSON, no markdown formatting.`;
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
+
+        const payload = {
+            contents: [{
+                parts: [
+                    { text: prompt },
+                    {
+                        inline_data: {
+                            mime_type: "image/jpeg",
+                            data: base64Image
+                        }
+                    }
+                ]
+            }],
+            generationConfig: {
+                temperature: 0.2, // Low temp for more deterministic extraction
+                response_mime_type: "application/json"
+            }
+        };
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error?.message || "Gemini API request failed");
+        }
+
+        const data = await response.json();
+        const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (!textResponse) throw new Error("No response from Gemini");
+
+        // Clean markdown block if present (```json ... ```)
+        const jsonBlock = textResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        return JSON.parse(jsonBlock);
     };
 
     const processImage = async (imageFile) => {
@@ -229,28 +258,41 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
                 return;
             }
         } catch (err) {
-            console.log("Barcode scan on file failed/not found, trying OCR...", err);
+            console.log("Barcode scan on file failed/not found, trying AI...", err);
         }
 
-        // 2. Optical Character Recognition (OCR)
-        setStatusMessage("Optimizing image...");
+        // 2. Gemini AI Scan
+        if (!geminiApiKey) {
+            setError("Gemini API Key is missing. Please configure it in Settings -> API.");
+            setProcessing(false);
+            setScanAnimation(false);
+            return;
+        }
+
+        setStatusMessage("Analyzing with Gemini AI...");
         try {
-            // Pre-process image for better OCR results
-            const processedBlob = await preprocessImage(imageFile);
+            // Need a Blob for the API helper
+            // If imageFile is File (from input), it's already a Blob.
+            // If from canvas capture, it's also a Blob.
+            const result = await callGeminiAPI(imageFile);
+            console.log("Gemini Result:", result);
 
-            setStatusMessage("Reading text...");
-            const result = await Tesseract.recognize(
-                processedBlob, // Use processed image
-                'eng',
-                { logger: m => console.log(m) }
-            );
-
-            const text = result.data.text;
-            console.log("OCR Text:", text);
-
-            const extracted = parseOCRText(text);
-            if (extracted && (extracted.depCandidate || extracted.arrCandidate || extracted.flightNumber)) {
+            if (result && (result.flightNumber || result.depCode || result.arrCode)) {
                 setStatusMessage("Flight info found!");
+
+                // Map Gemini result to our internal format
+                const extracted = {
+                    depCode: result.depCode,
+                    depCandidate: result.depCity || result.depCode, // Fallback for name search
+                    arrCode: result.arrCode,
+                    arrCandidate: result.arrCity || result.arrCode,
+                    airline: result.airline,
+                    flightNumber: result.flightNumber,
+                    date: result.date,
+                    seat: result.seat,
+                    name: result.passengerName
+                };
+
                 setTimeout(async () => {
                     onScanSuccess(extracted);
                     await handleClose();
@@ -258,97 +300,14 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
             } else {
                 setError("Could not identify flight details. Please try again or enter manually.");
             }
+
         } catch (err) {
-            console.error("OCR Error:", err);
-            setError("Failed to read image.");
+            console.error("Gemini Scan Error:", err);
+            setError("AI Scan failed: " + err.message);
         } finally {
             setProcessing(false);
             setScanAnimation(false);
         }
-    };
-
-    const parseOCRText = (text) => {
-        // Clean up common OCR artifacts but keep line breaks for proximity search
-        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-        const fullText = lines.join(' ').toUpperCase();
-
-        const keywords = {
-            dep: ['FROM', 'DEP', 'ORIGIN', 'DEPARTURE', 'BOARDING'],
-            arr: ['TO', 'DEST', 'DESTINATION', 'ARRIVAL', 'ARR']
-        };
-
-        let result = {
-            depCandidate: "",
-            arrCandidate: "",
-            flightNumber: "",
-            date: "",
-            airline: ""
-        };
-
-        // --- Helper: Find value near keyword ---
-        const findValueNearKeyword = (targetKeywords) => {
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i].toUpperCase();
-                for (const kw of targetKeywords) {
-                    if (line.includes(kw)) {
-                        // Strategy 1: Look on same line (after keyword)
-                        // e.g. "FROM: LONDON" or "DEP LHR"
-                        const contentAfter = line.split(kw)[1].trim();
-                        // Filter out small noise (like ":")
-                        const cleanAfter = contentAfter.replace(/^[:\.\-\s]+/, '');
-                        if (cleanAfter.length > 2) return cleanAfter;
-
-                        // Strategy 2: Look at NEXT line (common in boarding passes)
-                        // e.g. "DEPARTURE"
-                        //      "LONDON HEATHROW"
-                        if (lines[i + 1]) {
-                            const nextLine = lines[i + 1].trim();
-                            if (nextLine.length > 2 && !/TIME|DATE|GATE|SEAT/.test(nextLine.toUpperCase())) {
-                                return nextLine;
-                            }
-                        }
-                    }
-                }
-            }
-            return "";
-        };
-
-        result.depCandidate = findValueNearKeyword(keywords.dep);
-        result.arrCandidate = findValueNearKeyword(keywords.arr);
-
-        // --- Global Regex Search (Fallbacks) ---
-
-        // Flight Number: 2 chars + 3-4 digits (e.g., UA 1234, NH008)
-        const flightRegex = /\b([A-Z0-9]{2})\s?([0-9]{3,4})\b/;
-        const flightMatch = fullText.match(flightRegex);
-        if (flightMatch) {
-            result.airline = flightMatch[1];
-            result.flightNumber = flightMatch[1] + flightMatch[2];
-        }
-
-        // Date: DDMMM (e.g., 12JAN)
-        const dateRegex = /\b([0-9]{1,2})\s?([A-Z]{3})\b/;
-        const dateMatch = fullText.match(dateRegex);
-        if (dateMatch) {
-            const day = dateMatch[1].padStart(2, '0');
-            const monthStr = dateMatch[2];
-            const currentYear = new Date().getFullYear();
-            const months = { JAN: '01', FEB: '02', MAR: '03', APR: '04', MAY: '05', JUN: '06', JUL: '07', AUG: '08', SEP: '09', OCT: '10', NOV: '11', DEC: '12' };
-            const m = months[monthStr];
-
-            if (m) {
-                // Smart year logic
-                let year = currentYear;
-                const monthIndex = parseInt(m) - 1;
-                const currentMonth = new Date().getMonth();
-                if (monthIndex < currentMonth - 6) year++; // Next year
-                else if (monthIndex > currentMonth + 6) year--; // Prev year
-
-                result.date = `${year}-${m}-${day}`;
-            }
-        }
-
-        return result;
     };
 
     const finalizeScan = (decoded) => {
@@ -375,9 +334,9 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
     if (!mounted) return null;
 
     // Styling helpers
-    const borderColor = `border-${accentColor}-500`;
-    const textColor = `text-${accentColor}-400`;
-    const bgColor = `bg-${accentColor}-500`;
+    // const borderColor = `border-${accentColor}-500`; // Unused
+    // const textColor = `text-${accentColor}-400`; // Unused
+    // const bgColor = `bg-${accentColor}-500`; // Unused
 
     return createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 animate-in fade-in duration-200">
@@ -412,7 +371,7 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
 
                 {/* Error Toast */}
                 {error && (
-                    <div className="absolute top-20 left-6 right-6 z-30 animate-in slide-in-from-top-4">
+                    <div className="absolute top-24 left-6 right-6 z-30 animate-in slide-in-from-top-4">
                         <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-center gap-3 shadow-lg backdrop-blur-md">
                             <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
                                 <AlertCircle className="text-red-400" size={18} />
@@ -422,7 +381,6 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
                     </div>
                 )}
 
-                {/* Main Content */}
                 {/* Main Content */}
                 <div className="flex-1 relative bg-black flex flex-col items-center justify-center">
 
@@ -519,7 +477,7 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
                                 </div>
                                 <div className="w-1 h-1 rounded-full bg-zinc-800" />
                                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider">
-                                    <Aperture size={14} /> OCR
+                                    <Aperture size={14} /> GEMINI AI
                                 </div>
                             </div>
                         </div>
@@ -527,21 +485,8 @@ export default function BoardingPassScanner({ onClose, onScanSuccess, accentColo
 
                     <div id={readerId + "-hidden"} className="hidden"></div>
                 </div>
-            </div >
-
-            <style>{`
-                @keyframes scan {
-                    0% { top: 0%; opacity: 0; }
-                    10% { opacity: 1; }
-                    90% { opacity: 1; }
-                    100% { top: 100%; opacity: 0; }
-                }
-                /* Hide HTML5-QRCode default overlay elements */
-                #${readerId} img[alt="Info icon"] { display: none !important; }
-                #${readerId} div[style*="position: absolute; top:"] { display: none !important; }
-                #${readerId}__scan_region { display: none !important; } 
-            `}</style>
-        </div >,
+            </div>
+        </div>,
         document.body
     );
 }
