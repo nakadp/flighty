@@ -117,19 +117,11 @@
     "confirm_delete_trip": "删除此行程及其所有航班？",
     "error_saving": "保存出错：",
     "export_failed": "导出失败：",
-    "flight_log": "航班日志",
     "export": "导出",
-    "all_years": "所有年份",
-    "all_countries": "所有国家",
-    "no_flights_found": "未找到航班。",
-    "untitled_trip": "未命名行程",
-    "no_flights_in_trip": "此行程中没有航班",
     "generating_preview": "正在生成预览...",
-    "export_data": "导出数据",
     "export_filtered_view": "导出筛选视图",
     "current_filters": "当前筛选：",
     "export_all_data": "导出所有数据",
     "export_all_desc": "包含所有记录的行程和航班。",
-    "export_note": "导出的 Excel 文件将在顶部包含您的用户概要，随后是详细的行程和航班列表。",
-    "cancel": "取消"
+    "export_note": "导出的 Excel 文件将在顶部包含您的用户概要，随后是详细的行程和航班列表。"
 }

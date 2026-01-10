@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Palette, Globe, LogOut, ChevronRight, ArrowLeft, Database, Download, Lock, Plus } from 'lucide-react';
-import { useLanguage } from '../context/LanguageContext';
+import { useLanguage, SUPPORTED_LANGUAGES } from '../context/LanguageContext';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../firebase'; // Import db if needed for direct fetching, otherwise use props
 import { collection, getDocs, query, where } from 'firebase/firestore'; // For fresh fetch if needed
@@ -142,28 +142,17 @@ function SettingsModal({ user, onClose, accentColor, setAccentColor, viewMode, s
 
                     <div className="space-y-4">
                         <label className="text-sm font-medium text-slate-400 uppercase tracking-wider">{t('language')}</label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <button
-                                onClick={() => setLocalLanguage('en')}
-                                className={`p-4 rounded-xl border transition-all text-left ${localLanguage === 'en'
-                                    ? `bg-${localAccentColor}-500/20 border-${localAccentColor}-500/50 text-white`
-                                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
-                                    }`}
-                            >
-                                <div className="font-bold">English</div>
-                                <div className="text-xs opacity-70">English</div>
-                            </button>
-                            <button
-                                onClick={() => setLocalLanguage('zh-CN')}
-                                className={`p-4 rounded-xl border transition-all text-left ${localLanguage === 'zh-CN'
-                                    ? `bg-${localAccentColor}-500/20 border-${localAccentColor}-500/50 text-white`
-                                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
-                                    }`}
-                            >
-                                <div className="font-bold">简体中文</div>
-                                <div className="text-xs opacity-70">Chinese (Simplified)</div>
-                            </button>
-                        </div>
+                        <select
+                            value={localLanguage}
+                            onChange={(e) => setLocalLanguage(e.target.value)}
+                            className={`w-full bg-slate-900 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-${localAccentColor}-500 appearance-none cursor-pointer`}
+                        >
+                            {SUPPORTED_LANGUAGES.map((lang) => (
+                                <option key={lang.code} value={lang.code}>
+                                    {lang.nativeName} ({lang.name})
+                                </option>
+                            ))}
+                        </select>
                     </div>
 
                     {/* CURRENCY SELECTOR */}
