@@ -426,47 +426,71 @@ Use null for missing fields. Return ONLY raw JSON, no markdown formatting.`;
 
                     {isMobile ? (
                         <>
-                            {/* Camera View */}
-                            <div id={readerId} className="w-full h-full object-cover" />
+                            {/* Camera View - Full Screen */}
+                            <div id={readerId} className="absolute inset-0 w-full h-full [&>video]:object-cover [&>video]:w-full [&>video]:h-full" />
 
-                            {/* Overlay */}
-                            <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center z-10">
-                                {/* Focus Frame */}
-                                <div className={`
-                                      w-[90%] aspect-[16/9] rounded-3xl border-2 relative overflow-hidden transition-all duration-500 box-border
-                                      ${scanAnimation ? `border-${accentColor}-500 shadow-[0_0_60px_${accentColor}/20]` : 'border-white/30'}
-                                  `}>
-                                    {!processing && (
-                                        <div className={`absolute top-0 left-0 w-full h-0.5 bg-${accentColor}-500 shadow-[0_0_20px_${accentColor}] animate-[scan_2s_infinite_linear]`} />
-                                    )}
+                            {/* Blur Frame Overlay */}
+                            <div className="absolute inset-0 z-10 flex flex-col pointer-events-none">
+                                {/* Top Blur */}
+                                <div className="flex-1 w-full bg-black/60 backdrop-blur-md transition-all duration-300"></div>
 
-                                    {/* Corner Accents */}
-                                    <div className={`absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 rounded-tl-xl ${processing ? `border-${accentColor}-500` : 'border-white'} transition-colors`} />
-                                    <div className={`absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 rounded-tr-xl ${processing ? `border-${accentColor}-500` : 'border-white'} transition-colors`} />
-                                    <div className={`absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 rounded-bl-xl ${processing ? `border-${accentColor}-500` : 'border-white'} transition-colors`} />
-                                    <div className={`absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 rounded-br-xl ${processing ? `border-${accentColor}-500` : 'border-white'} transition-colors`} />
-                                </div>
+                                {/* Middle Row */}
+                                <div className="flex w-full shrink-0 h-auto">
+                                    {/* Left Blur */}
+                                    <div className="w-[8%] bg-black/60 backdrop-blur-md transition-all duration-300"></div>
 
-                                <div className="mt-12 text-center pointer-events-auto space-y-6">
-                                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black/40 border border-white/5 backdrop-blur-md">
-                                        <Scan size={14} className="text-white/60" />
-                                        <p className="text-white/80 text-xs font-medium tracking-wide uppercase">{t('align_boarding_pass')}</p>
+                                    {/* Clear Viewfinder Area */}
+                                    <div className={`
+                                        w-[84%] aspect-[16/9] relative transition-all duration-500
+                                        ${scanAnimation ? '' : ''}
+                                    `}>
+                                        {/* Corner Accents - White normally, Accent color when processing */}
+                                        <div className={`absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 rounded-tl-2xl ${processing ? `border-${accentColor}-500` : 'border-white'} transition-colors duration-300 drop-shadow-lg`} />
+                                        <div className={`absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 rounded-tr-2xl ${processing ? `border-${accentColor}-500` : 'border-white'} transition-colors duration-300 drop-shadow-lg`} />
+                                        <div className={`absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 rounded-bl-2xl ${processing ? `border-${accentColor}-500` : 'border-white'} transition-colors duration-300 drop-shadow-lg`} />
+                                        <div className={`absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 rounded-br-2xl ${processing ? `border-${accentColor}-500` : 'border-white'} transition-colors duration-300 drop-shadow-lg`} />
+
+                                        {/* Scanning Laser Line */}
+                                        {!processing && (
+                                            <div className={`absolute top-0 left-0 w-full h-0.5 bg-${accentColor}-500 shadow-[0_0_20px_${accentColor}] animate-[scan_2s_infinite_linear] opacity-80`} />
+                                        )}
+
+                                        {/* Active Processing Pulse/Glow */}
+                                        {processing && (
+                                            <div className={`absolute inset-0 border-2 border-${accentColor}-500/50 shadow-[0_0_60px_${accentColor}/30] animate-pulse rounded-xl`}></div>
+                                        )}
                                     </div>
 
-                                    <button
-                                        onClick={captureAndProcess}
-                                        disabled={processing}
-                                        className={`
-                                              group flex items-center gap-3 mx-auto px-6 py-3.5 rounded-2xl transition-all border backdrop-blur-xl
-                                              bg-white/5 hover:bg-white/10 active:scale-95 disabled:opacity-50 disabled:active:scale-100
-                                              border-white/10 hover:border-${accentColor}-500/50 hover:shadow-[0_0_30px_${accentColor}/20]
-                                          `}
-                                    >
-                                        <div className={`w-8 h-8 rounded-full bg-${accentColor}-500/20 flex items-center justify-center text-${accentColor}-400 group-hover:scale-110 transition-transform`}>
-                                            <Aperture size={18} />
+                                    {/* Right Blur */}
+                                    <div className="w-[8%] bg-black/60 backdrop-blur-md transition-all duration-300"></div>
+                                </div>
+
+                                {/* Bottom Blur */}
+                                <div className="flex-1 w-full bg-black/60 backdrop-blur-md flex flex-col items-center pt-8 transition-all duration-300">
+                                    {/* Controls are placed here visually but need pointer-events-auto */}
+                                    <div className="pointer-events-auto space-y-8 flex flex-col items-center w-full">
+
+                                        <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-black/40 border border-white/10 backdrop-blur-xl shadow-lg">
+                                            <Scan size={14} className="text-white/70" />
+                                            <p className="text-white/90 text-xs font-semibold tracking-wide uppercase">{t('align_boarding_pass')}</p>
                                         </div>
-                                        <span className="text-white font-medium">{t('capture_scan')}</span>
-                                    </button>
+
+                                        <button
+                                            onClick={captureAndProcess}
+                                            disabled={processing}
+                                            className={`
+                                                group flex items-center justify-center gap-3 w-[80%] max-w-[280px] py-4 rounded-2xl transition-all border backdrop-blur-xl
+                                                bg-white/10 hover:bg-white/20 active:scale-95 disabled:opacity-50 disabled:active:scale-100
+                                                border-white/10 hover:border-${accentColor}-500/50 hover:shadow-[0_0_30px_${accentColor}/20]
+                                                shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)]
+                                            `}
+                                        >
+                                            <div className={`w-8 h-8 rounded-full bg-${accentColor}-500/20 flex items-center justify-center text-${accentColor}-400 group-hover:scale-110 transition-transform`}>
+                                                <Aperture size={18} />
+                                            </div>
+                                            <span className="text-white font-bold text-lg tracking-tight">{t('capture_scan')}</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </>
