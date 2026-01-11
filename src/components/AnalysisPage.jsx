@@ -1,35 +1,18 @@
 import React, { useState, useMemo } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Calendar, MapPin, Search, TrendingUp, X } from 'lucide-react';
+import { Calendar, Search, TrendingUp, X, Globe, Layers } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { generateMockAnalysisData } from '../utils/mockAnalysisData';
-
-// Custom Tooltip for Glassmorphism Look
-const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-        return (
-            <div className="bg-black/80 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl">
-                <p className="text-gray-400 text-xs uppercase tracking-wider mb-2">{label}</p>
-                <div className="space-y-1">
-                    {payload.map((entry, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }}></div>
-                            <span className="text-white text-sm font-mono font-bold">¥{entry.value.toLocaleString()}</span>
-                            <span className="text-xs text-gray-500 capitalize">{entry.name}</span>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
-    }
-    return null;
-};
+import AnalysisChart from './AnalysisChart';
+import CityAutocomplete from './CityAutocomplete';
+import GlassSelect from './GlassSelect';
+import FlightDetailsModal from './FlightDetailsModal';
 
 export default function AnalysisPage() {
     const navigate = useNavigate();
+
     // State for Inputs
-    const [origin, setOrigin] = useState('PEK');
-    const [destination, setDestination] = useState('LHR');
+    const [origin, setOrigin] = useState('Beijing (PEK)');
+    const [destination, setDestination] = useState('London (LHR)');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [minDays, setMinDays] = useState(5);
@@ -44,6 +27,10 @@ export default function AnalysisPage() {
     const [showQuickest, setShowQuickest] = useState(true);
     const [showRecommended, setShowRecommended] = useState(true);
 
+    // Modal State
+    const [selectedFlight, setSelectedFlight] = useState(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
     // Generate Data based on duration/platform
     const chartData = useMemo(() => {
         // Extract number from "5 Days"
@@ -54,11 +41,20 @@ export default function AnalysisPage() {
     const availableDurations = useMemo(() => {
         // Generate dropdown options based on Min/Max days input
         const options = [];
-        for (let i = parseInt(minDays); i <= parseInt(maxDays); i++) {
+        const min = parseInt(minDays) || 1;
+        const max = parseInt(maxDays) || 10;
+
+        for (let i = min; i <= max; i++) {
             options.push(`${i} Days`);
         }
         return options;
     }, [minDays, maxDays]);
+
+    // Handle Chart Click
+    const handleChartPointClick = (flightData) => {
+        setSelectedFlight(flightData);
+        setIsModalOpen(true);
+    };
 
     return (
         <div className="absolute inset-0 z-40 flex flex-row pointer-events-none">
@@ -67,113 +63,48 @@ export default function AnalysisPage() {
                 <div className="flex-1 glass-panel rounded-3xl border border-white/10 overflow-hidden flex flex-col p-6 backdrop-blur-2xl bg-black/40">
 
                     {/* TOP CONTROL BAR */}
-                    <div className="flex justify-between items-center mb-6">
+                    <div className="flex justify-between items-center mb-6 z-20">
                         <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2 bg-black/30 px-3 py-1.5 rounded-lg border border-white/5">
-                                <span className="text-slate-400 text-xs uppercase tracking-wider">Trip Length:</span>
-                                <select
-                                    value={displayLength}
-                                    onChange={(e) => setDisplayLength(e.target.value)}
-                                    className="bg-transparent text-cyan-400 font-bold text-sm outline-none border-none cursor-pointer"
-                                >
-                                    {availableDurations.map(d => <option key={d} value={d} className="bg-slate-900">{d}</option>)}
-                                </select>
-                            </div>
+                            <GlassSelect
+                                value={displayLength}
+                                onChange={setDisplayLength}
+                                options={availableDurations}
+                                label="Trip Length"
+                                icon={Globe}
+                            />
 
-                            <div className="flex items-center gap-2 bg-black/30 px-3 py-1.5 rounded-lg border border-white/5">
-                                <span className="text-slate-400 text-xs uppercase tracking-wider">Platform:</span>
-                                <select
-                                    value={platform}
-                                    onChange={(e) => setPlatform(e.target.value)}
-                                    className="bg-transparent text-purple-400 font-bold text-sm outline-none border-none cursor-pointer"
-                                >
-                                    <option className="bg-slate-900" value="Aggregate All">Aggregate All</option>
-                                    <option className="bg-slate-900" value="Trip.com">Trip.com</option>
-                                    <option className="bg-slate-900" value="Expedia">Expedia</option>
-                                </select>
-                            </div>
+                            <GlassSelect
+                                value={platform}
+                                onChange={setPlatform}
+                                options={["Aggregate All", "Trip.com", "Expedia"]}
+                                label="Platform"
+                                icon={Layers}
+                            />
                         </div>
 
                         {/* LEGEND / TOGGLES */}
-                        <div className="flex gap-4 items-center">
-                            <button onClick={() => setShowCheapest(!showCheapest)} className={`flex items-center gap-2 text-xs uppercase font-bold transition-opacity ${showCheapest ? 'opacity-100' : 'opacity-40'}`}>
-                                <div className="w-3 h-1 bg-cyan-400 rounded-full shadow-[0_0_10px_#22d3ee]"></div> Cheapest
+                        <div className="flex gap-4 items-center bg-black/20 p-2 rounded-xl border border-white/5">
+                            <button onClick={() => setShowCheapest(!showCheapest)} className={`flex items-center gap-2 text-xs uppercase font-bold transition-all px-3 py-1.5 rounded-lg ${showCheapest ? 'bg-cyan-500/20 text-cyan-400' : 'opacity-40 hover:opacity-100'}`}>
+                                <div className="w-2 h-2 bg-cyan-400 rounded-full shadow-[0_0_8px_#22d3ee]"></div> Cheapest
                             </button>
-                            <button onClick={() => setShowQuickest(!showQuickest)} className={`flex items-center gap-2 text-xs uppercase font-bold transition-opacity ${showQuickest ? 'opacity-100' : 'opacity-40'}`}>
-                                <div className="w-3 h-1 bg-orange-500 rounded-full shadow-[0_0_10px_#f97316]"></div> Quickest
+                            <button onClick={() => setShowQuickest(!showQuickest)} className={`flex items-center gap-2 text-xs uppercase font-bold transition-all px-3 py-1.5 rounded-lg ${showQuickest ? 'bg-orange-500/20 text-orange-400' : 'opacity-40 hover:opacity-100'}`}>
+                                <div className="w-2 h-2 bg-orange-500 rounded-full shadow-[0_0_8px_#f97316]"></div> Quickest
                             </button>
-                            <button onClick={() => setShowRecommended(!showRecommended)} className={`flex items-center gap-2 text-xs uppercase font-bold transition-opacity ${showRecommended ? 'opacity-100' : 'opacity-40'}`}>
-                                <div className="w-3 h-1 bg-purple-500 rounded-full shadow-[0_0_10px_#a855f7]"></div> Recommended
+                            <button onClick={() => setShowRecommended(!showRecommended)} className={`flex items-center gap-2 text-xs uppercase font-bold transition-all px-3 py-1.5 rounded-lg ${showRecommended ? 'bg-purple-500/20 text-purple-400' : 'opacity-40 hover:opacity-100'}`}>
+                                <div className="w-2 h-2 bg-purple-500 rounded-full shadow-[0_0_8px_#a855f7]"></div> Recommended
                             </button>
                         </div>
                     </div>
 
                     {/* CHART AREA */}
-                    <div className="flex-1 w-full min-h-0">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                                <defs>
-                                    <linearGradient id="cyanGradient" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                                <XAxis
-                                    dataKey="date"
-                                    stroke="#475569"
-                                    tick={{ fill: '#475569', fontSize: 12 }}
-                                    tickLine={false}
-                                    axisLine={false}
-                                    dy={10}
-                                />
-                                <YAxis
-                                    stroke="#475569"
-                                    tick={{ fill: '#475569', fontSize: 12 }}
-                                    tickLine={false}
-                                    axisLine={false}
-                                    tickFormatter={(val) => `¥${val}`}
-                                />
-                                <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }} />
-
-                                {showCheapest && (
-                                    <Line
-                                        type="monotone"
-                                        dataKey="cheapest"
-                                        name="Cheapest"
-                                        stroke="#06b6d4"
-                                        strokeWidth={3}
-                                        dot={{ r: 4, fill: '#06b6d4', strokeWidth: 0, fillOpacity: 1 }}
-                                        activeDot={{ r: 8, stroke: '#06b6d4', strokeWidth: 2, fill: '#000' }}
-                                        animationDuration={1000}
-                                        style={{ filter: 'drop-shadow(0 0 8px rgba(6, 182, 212, 0.5))' }}
-                                    />
-                                )}
-                                {showQuickest && (
-                                    <Line
-                                        type="monotone"
-                                        dataKey="shortest"
-                                        name="Quickest"
-                                        stroke="#f97316"
-                                        strokeWidth={2}
-                                        dot={false}
-                                        activeDot={{ r: 6 }}
-                                        strokeDasharray="5 5"
-                                    />
-                                )}
-                                {showRecommended && (
-                                    <Line
-                                        type="monotone"
-                                        dataKey="recommended"
-                                        name="Recommended"
-                                        stroke="#a855f7"
-                                        strokeWidth={2}
-                                        dot={false}
-                                        activeDot={{ r: 6 }}
-                                    />
-                                )}
-                            </LineChart>
-                        </ResponsiveContainer>
+                    <div className="flex-1 w-full min-h-0 relative">
+                        <AnalysisChart
+                            data={chartData}
+                            showCheapest={showCheapest}
+                            showQuickest={showQuickest}
+                            showRecommended={showRecommended}
+                            onPointClick={handleChartPointClick}
+                        />
                     </div>
 
                 </div>
@@ -181,11 +112,6 @@ export default function AnalysisPage() {
 
             {/* RIGHT SIDEBAR (25%) */}
             <div className="w-1/4 h-full p-6 pt-24 pr-6 flex flex-col pointer-events-auto">
-                {/* Close Button - Floated outside or inside panel? Inside panel top-right seems best for glass look, or absolute on page. 
-                     Prompt said: "Exit: Add a prominent 'Close' (X) button in the top-right corner that navigates back to /"
-                     Let's put it top-right of the screen/container, above the panel or inside it. 
-                     Inside the panel header is cleanest. */}
-
                 <div className="relative h-full glass-panel rounded-3xl border border-white/10 p-6 flex flex-col bg-black/60 backdrop-blur-2xl">
                     <button
                         onClick={() => navigate('/')}
@@ -202,31 +128,19 @@ export default function AnalysisPage() {
 
                         {/* Cities */}
                         <div className="space-y-4">
-                            <div className="group">
-                                <label className="block text-[10px] text-slate-500 uppercase tracking-wider mb-1.5 group-focus-within:text-cyan-400 transition-colors">Origin City</label>
-                                <div className="relative">
-                                    <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                                    <input
-                                        type="text"
-                                        value={origin}
-                                        onChange={(e) => setOrigin(e.target.value)}
-                                        className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-9 pr-3 text-white text-sm focus:border-cyan-500/50 focus:outline-none focus:bg-white/5 transition-all font-mono uppercase"
-                                    />
-                                </div>
-                            </div>
+                            <CityAutocomplete
+                                label="Origin City"
+                                value={origin}
+                                onChange={setOrigin}
+                                placeholder="Search origin..."
+                            />
 
-                            <div className="group">
-                                <label className="block text-[10px] text-slate-500 uppercase tracking-wider mb-1.5 group-focus-within:text-cyan-400 transition-colors">Destination City</label>
-                                <div className="relative">
-                                    <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                                    <input
-                                        type="text"
-                                        value={destination}
-                                        onChange={(e) => setDestination(e.target.value)}
-                                        className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-9 pr-3 text-white text-sm focus:border-cyan-500/50 focus:outline-none focus:bg-white/5 transition-all font-mono uppercase"
-                                    />
-                                </div>
-                            </div>
+                            <CityAutocomplete
+                                label="Destination City"
+                                value={destination}
+                                onChange={setDestination}
+                                placeholder="Search destination..."
+                            />
                         </div>
 
                         <hr className="border-white/5" />
@@ -297,6 +211,13 @@ export default function AnalysisPage() {
                     </div>
                 </div>
             </div>
+
+            {/* FLIGHT DETAILS MODAL */}
+            <FlightDetailsModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                data={selectedFlight}
+            />
         </div>
     );
 }
