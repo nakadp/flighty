@@ -6,6 +6,7 @@ import { CITIES } from '../data/cities';
 import * as THREE from 'three';
 import throttle from 'lodash.throttle';
 import { getThemeHex } from '../utils/theme';
+import { getCachedUrl } from '../utils/cacheUtils';
 
 export default function GlobeView({ flights = [], width, height, onFlightClick, accentColor = 'cyan' }) {
     const globeEl = useRef();
@@ -14,6 +15,13 @@ export default function GlobeView({ flights = [], width, height, onFlightClick, 
     const [hoverArc, setHoverArc] = useState(null);
     const [globeMode, setGlobeMode] = useState('satellite');
     const [isRotating, setIsRotating] = useState(false);
+
+    // Asset State
+    const [textures, setTextures] = useState({
+        globe: null,
+        bump: null,
+        background: null
+    });
 
     // Get hex for accent color
     const accentHex = getThemeHex(accentColor, 400); // Brighter key color for paths
@@ -54,32 +62,62 @@ export default function GlobeView({ flights = [], width, height, onFlightClick, 
         }
     }, [altitude]);
 
+    // Load Assets (Textures & Borders)
     useEffect(() => {
-        // RESOLUTION STRATEGY:
-        // Try 50m (Medium). Fallback to 110m (Low).
-        const loadBorders = async () => {
-            const url50m = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson';
-            const url110m = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson';
+        const loadAssets = async () => {
+            // Textures
+            const globeUrl = 'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg';
+            const bumpUrl = 'https://unpkg.com/three-globe/example/img/earth-topology.png';
+            const bgUrl = 'https://unpkg.com/three-globe/example/img/night-sky.png';
+
+            // Borders
+            const borderUrl50m = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson';
+            const borderUrl110m = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson';
 
             try {
-                const res = await fetch(url50m);
-                if (!res.ok) throw new Error("50m Fetch Failed");
-                const data = await res.json();
-                setCountries(data);
-                console.log("Loaded 50m Borders");
-            } catch (e) {
-                console.warn("Falling back to 110m borders due to:", e);
+                // Load Textures
+                const [globeBlob, bumpBlob, bgBlob] = await Promise.all([
+                    getCachedUrl(globeUrl),
+                    getCachedUrl(bumpUrl),
+                    getCachedUrl(bgUrl)
+                ]);
+
+                setTextures({
+                    globe: globeBlob,
+                    bump: bumpBlob,
+                    background: bgBlob
+                });
+
+                // Load Borders
+                // Try 50m first
+                let borderData = null;
                 try {
-                    const resFallback = await fetch(url110m);
-                    const dataFallback = await resFallback.json();
-                    setCountries(dataFallback);
-                } catch (e2) {
-                    console.error("Critical: All border sources failed.", e2);
+                    const borderBlobUrl = await getCachedUrl(borderUrl50m);
+                    const res = await fetch(borderBlobUrl);
+                    if (!res.ok) throw new Error("50m Fetch Failed");
+                    borderData = await res.json();
+                    console.log("Loaded 50m Borders (Cached)");
+                } catch (e) {
+                    console.warn("Falling back to 110m borders:", e);
+                    try {
+                        const borderBlobUrl = await getCachedUrl(borderUrl110m);
+                        const res = await fetch(borderBlobUrl);
+                        borderData = await res.json();
+                    } catch (e2) {
+                        console.error("Critical: All border sources failed.", e2);
+                    }
                 }
+
+                if (borderData) {
+                    setCountries(borderData);
+                }
+
+            } catch (err) {
+                console.error("Failed to load assets:", err);
             }
         };
 
-        loadBorders();
+        loadAssets();
     }, []);
 
     const processedFlights = useMemo(() => {
@@ -142,15 +180,9 @@ export default function GlobeView({ flights = [], width, height, onFlightClick, 
                 height={height}
 
                 // Textures
-                globeImageUrl={globeMode === 'satellite'
-                    ? "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
-                    : null
-                }
-                bumpImageUrl={globeMode === 'satellite'
-                    ? "https://unpkg.com/three-globe/example/img/earth-topology.png"
-                    : null
-                }
-                backgroundImageUrl="https://unpkg.com/three-globe/example/img/night-sky.png"
+                globeImageUrl={globeMode === 'satellite' ? textures.globe : null}
+                bumpImageUrl={globeMode === 'satellite' ? textures.bump : null}
+                backgroundImageUrl={textures.background}
 
                 // Abstract Mode
                 backgroundColor="#000000"
