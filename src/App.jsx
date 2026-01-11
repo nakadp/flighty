@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Plus, X, Plane, Calendar, MapPin, Settings, Share2, Globe, Map as MapIcon, List as ListIcon, LogOut, Check, Download, Link } from 'lucide-react';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { Plus, X, Plane, Calendar, MapPin, Settings, Share2, Globe, Map as MapIcon, List as ListIcon, LogOut, Check, Download, Link, TrendingUp, Home } from 'lucide-react';
 import GlobeView from './components/GlobeView';
 import MapView from './components/MapView';
-import FlightForm from './components/FlightForm';
-import FlightList from './components/FlightList';
+import DashboardHome from './components/DashboardHome';
+import AnalysisPage from './components/AnalysisPage';
 import Login from './components/Login';
-import SettingsModal from './components/SettingsModal';
-import ShareSheet from './components/ShareSheet';
 import { calculateDistance, formatDistance } from './utils/calculations';
 import { useLanguage } from './context/LanguageContext';
 import { toPng } from 'html-to-image';
@@ -20,6 +19,8 @@ import { collection, doc, setDoc, deleteDoc, onSnapshot, query, where, orderBy, 
 
 function App() {
   const { t, language, changeLanguage } = useLanguage();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // SHARED VIEW LOGIC
   const queryParams = new URLSearchParams(window.location.search);
@@ -234,11 +235,6 @@ function App() {
           });
         }
 
-        // viewMode persistence removed
-        // Only change language if it's the User's own view. In shared view, generally keep viewer preference? 
-        // Or if we want to show exactly what they see. 
-        // The user request says "viewer cannot edit settings", but implies viewing what was created?
-        // Let's NOT force language change on viewer for now.
         if (!isSharedView && data.language && data.language !== language) {
           changeLanguage(data.language);
         }
@@ -291,8 +287,6 @@ function App() {
     changeLanguage(newLang);
     saveSetting('language', newLang);
   };
-
-
 
   // SHARE SHEET STATE
   const [showShareSheet, setShowShareSheet] = useState(false);
@@ -417,14 +411,10 @@ function App() {
       await setDoc(tripRef, { ...tripData, userId: user.uid });
 
       // 2. Sync Flights
-
-      // Identify flights to delete (exist in DB but not in current submission)
-      // Note: 'flights' state is available in this scope
       const currentTripFlights = flights.filter(f => f.tripId === tripData.id);
       const newFlightIds = new Set(flightDataList.map(f => f.id));
 
       const flightsToDelete = currentTripFlights.filter(f => !newFlightIds.has(f.id));
-
       const deletePromises = flightsToDelete.map(f => deleteDoc(doc(db, "test", f.id)));
 
       // Ensure unique by ID
@@ -442,7 +432,6 @@ function App() {
       alert(t('error_saving') + e.message);
     }
 
-
     setEditingFlight(null);
     setEditingTrip(null);
     setShowForm(false);
@@ -459,11 +448,6 @@ function App() {
       alert(t('export_failed') + e.message);
     }
   };
-
-  // Backwards compatible info: passing (flight) implies single flight "orphan" save
-  // But our new UI will primarily focus on Trips. 
-  // If FlightForm is reused for single flight, we wrap it in a pseudo-trip or handle it directly.
-  // We'll update this shortly.
 
   const handleDeleteFlight = async (id) => {
     if (!user) return;
@@ -524,20 +508,13 @@ function App() {
   const getAccentBorder = () => `border-${accentColor}-500`;
   const getAccentBg = () => `bg-${accentColor}-600`;
 
-  // Safelist for Tailwind (Hidden)
-  // text-cyan-400 text-violet-400 text-orange-400 text-emerald-400 text-rose-400
-  // border-cyan-500 border-violet-500 border-orange-500 border-emerald-500 border-rose-500
-  // bg-cyan-600 bg-violet-600 bg-orange-600 bg-emerald-600 bg-rose-600
-  // hover:bg-cyan-500 hover:bg-violet-500 hover:bg-orange-500 hover:bg-emerald-500 hover:bg-rose-500
-  // bg-cyan-900 bg-violet-900 bg-orange-900 bg-emerald-900 bg-rose-900
-
   // Determine if running in Electron
   const isElectron = window.ipcRenderer || (window.process && window.process.type === 'renderer') || navigator.userAgent.includes('Electron');
 
   return (
     <div className="relative w-screen h-screen bg-black overflow-hidden font-sans select-none text-white">
 
-      {/* BACKGROUND */}
+      {/* BACKGROUND (Persistent) */}
       <div className="absolute inset-0 z-0">
         {viewMode === '3D' ? (
           <GlobeView
@@ -556,182 +533,57 @@ function App() {
         )}
       </div>
 
-      {/* TOP BAR - share-ignore class means it won't be captured if we want to hide it, but user might want stats. Let's keep stats. */}
-      <div className={`absolute top-0 left-0 right-0 h-auto min-h-[80px] md:h-20 bg-gradient-to-b from-black/90 via-black/40 to-transparent z-40 flex flex-col md:flex-row items-center justify-between px-4 md:px-6 py-2 md:py-0 transition-all ${isElectron ? 'pointer-events-none' : ''}`}>
-        {/* User Profile Logic: Hide in Shared Mode */}
-        {!isSharedView ? (
-          <div className="flex items-center gap-4 pointer-events-auto w-full md:w-auto">
-            {user.photoURL ? (
-              <img src={user.photoURL} alt="User" className={`w-10 h-10 rounded-full border ${getAccentBorder()}/50`} />
-            ) : (
-              <div className={`w-10 h-10 rounded-full bg-${accentColor}-900/50 border border-${accentColor}-500/30 flex items-center justify-center ${getAccentText()} font-bold`}>
-                {user.displayName ? user.displayName.charAt(0) : 'U'}
-              </div>
-            )}
+      {/* RIGHT SIDEBAR (Persistent Navigation) */}
+      {/* ROUTES LAYER */}
+      <Routes>
+        <Route path="/" element={
+          <DashboardHome
+            user={user}
+            stats={stats}
+            currency={currency}
+            accentColor={accentColor}
+            viewMode={viewMode}
+            setViewMode={handleSetViewMode}
+            showForm={showForm}
+            setShowForm={setShowForm}
+            showList={showList}
+            setShowList={setShowList}
+            showSettings={showSettings}
+            setShowSettings={setShowSettings}
+            flights={flights}
+            trips={trips}
+            editingTrip={editingTrip}
+            editingFlight={editingFlight}
+            setEditingFlight={setEditingFlight}
+            setEditingTrip={setEditingTrip}
+            apiConfig={apiConfig}
+            setApiConfig={handleUpdateApiConfig}
+            handleSetCurrency={handleSetCurrency}
+            handleSetLanguage={handleSetLanguage}
+            handleShare={handleShare}
+            handleDeleteFlight={handleDeleteFlight}
+            handleDeleteTrip={handleDeleteTrip}
+            handleEditFlight={handleEditFlight}
+            handleExportData={handleExportData}
+            handleCloseForm={handleCloseForm}
+            handleSaveTrip={handleSaveTrip}
+            handleUpdateApiConfig={handleUpdateApiConfig}
+            handleSetAccentColor={handleSetAccentColor}
+            sharing={sharing}
+            shareImage={shareImage}
+            showShareSheet={showShareSheet}
+            setShowShareSheet={setShowShareSheet}
+            handleSaveImage={handleSaveImage}
+            handleNativeShare={handleNativeShare}
+            handleCopyLink={handleCopyLink}
+          />
+        } />
+        <Route path="/analysis" element={<AnalysisPage />} />
+      </Routes>
 
-            <div>
-              <h1 className="text-lg font-black tracking-tighter text-white">SKYTRACE</h1>
-              <div className={`text-[10px] ${getAccentText()} uppercase tracking-[0.2em]`}>{user.displayName || t('private_log')}</div>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-4 pointer-events-auto w-full md:w-auto">
-            <div>
-              <h1 className="text-lg font-black tracking-tighter text-white">SKYTRACE</h1>
-              <div className={`text-[10px] ${getAccentText()} uppercase tracking-[0.2em]`}>{t('flight_map')}</div>
-            </div>
-          </div>
-        )}
-
-        <div className={`flex items-center gap-2 md:gap-8 pointer-events-auto ${!isSharedView ? 'cursor-pointer hover:opacity-80' : ''} transition-opacity mt-2 md:mt-0 w-full md:w-auto justify-center md:justify-end`} onClick={() => !isSharedView && setShowList(true)}>
-          <div className="text-center">
-            <div className="text-[10px] md:text-xs text-slate-400 uppercase tracking-wider mb-0.5">{t('flights')}</div>
-            <div className="text-sm md:text-xl font-bold text-white font-mono">{stats.count}</div>
-          </div>
-          <div className="h-6 md:h-8 w-px bg-white/10"></div>
-          <div className="text-center">
-            <div className="text-[10px] md:text-xs text-slate-400 uppercase tracking-wider mb-0.5">{t('distance')}</div>
-            <div className={`text-sm md:text-xl font-bold ${getAccentText()} font-mono`}>{formatDistance(stats.distance)} <span className={`text-[10px] md:text-xs ${getAccentText()}/70`}>km</span></div>
-          </div>
-          <div className="h-6 md:h-8 w-px bg-white/10"></div>
-          <div className="text-center">
-            <div className="text-[10px] md:text-xs text-slate-400 uppercase tracking-wider mb-0.5">{t('hours')}</div>
-            <div className="text-sm md:text-xl font-bold text-white font-mono">{stats.hours} <span className="text-[10px] md:text-xs text-slate-500">h</span></div>
-          </div>
-          <div className="h-6 md:h-8 w-px bg-white/10"></div>
-          <div className="text-center">
-            <div className="text-[10px] md:text-xs text-slate-400 uppercase tracking-wider mb-0.5">{t('cost')}</div>
-            <div className="text-sm md:text-xl font-bold text-white font-mono">
-              <span className="text-[10px] md:text-xs text-slate-500 mr-1">{currency}</span>
-              {stats.totalCost.toLocaleString()}
-            </div>
-          </div>
-        </div>
-
-        {/* Placeholder for balance */}
-        <div className="hidden md:block w-24"></div>
-      </div>
-
-      {/* RIGHT ACTIONS - with share-ignore so they don't appear in screenshot */}
-      <div className="share-ignore absolute right-4 md:right-6 top-[45%] md:top-1/2 -translate-y-1/2 flex flex-col gap-3 md:gap-4 z-40 pointer-events-auto">
-
-        {/* SHARE BUTTON - Hide in Shared View */}
-        {!isSharedView && (
-          <button
-            onClick={handleShare}
-            className={`w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover-accent-btn transition-all shadow-lg group relative`}
-          >
-            {sharing ? <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/50 border-t-white"></div> : <Share2 size={20} />}
-            <span className="absolute right-14 bg-black/80 px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{t('share') || "Share"}</span>
-          </button>
-        )}
-
-        <button
-          onClick={() => handleSetViewMode(viewMode === '3D' ? '2D' : '3D')}
-          className={`w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover-accent-btn transition-all shadow-lg group relative`}
-        >
-          <MapIcon size={20} className={viewMode === '3D' ? 'block' : 'hidden'} />
-          <Globe size={20} className={viewMode === '2D' ? 'block' : 'hidden'} />
-          <span className="absolute right-14 bg-black/80 px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{t('switch_view')}</span>
-        </button>
-
-        {!isSharedView && (
-          <>
-            <button
-              onClick={() => setShowList(true)}
-              className={`w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover-accent-btn transition-all shadow-lg group relative`}
-            >
-              <ListIcon size={20} />
-              <span className="absolute right-14 bg-black/80 px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{t('flight_history')}</span>
-            </button>
-
-            <button
-              onClick={() => setShowSettings(true)}
-              className={`w-12 h-12 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover-accent-btn transition-all shadow-lg group relative`}
-            >
-              <Settings size={20} />
-              <span className="absolute right-14 bg-black/80 px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{t('settings')}</span>
-            </button>
-          </>
-        )}
-      </div>
-
-      {/* FAB - Hide in Shared View */}
-      {!isSharedView && (
-        <div className="share-ignore absolute bottom-20 right-4 md:bottom-8 md:right-6 z-40 pointer-events-auto">
-          <button
-            onClick={() => { setEditingFlight(null); setShowForm(true); }}
-            className={`group relative flex items-center justify-center w-14 h-14 rounded-full ${getAccentBg()} hover:bg-${accentColor}-500 text-white shadow-[0_0_30px_rgba(255,255,255,0.2)] transition-all hover:scale-110 active:scale-95`}
-          >
-            <div className="absolute inset-0 rounded-full border border-white/20 animate-pulse"></div>
-            <Plus size={28} strokeWidth={2.5} className="group-hover:rotate-90 transition-transform duration-300" />
-          </button>
-        </div>
-      )}
-
-      {/* MODALS */}
-      <ShareSheet
-        isOpen={showShareSheet}
-        onClose={() => setShowShareSheet(false)}
-        image={shareImage}
-        onSave={handleSaveImage}
-        onShare={handleNativeShare}
-        onCopyLink={handleCopyLink}
-        accentColor={accentColor}
-      />
-
-      {showSettings && (
-        <SettingsModal
-          user={user}
-          onClose={() => setShowSettings(false)}
-          accentColor={accentColor}
-          setAccentColor={handleSetAccentColor}
-          viewMode={viewMode}
-          setViewMode={handleSetViewMode}
-          currency={currency}
-          setCurrency={handleSetCurrency}
-          setLanguage={handleSetLanguage}
-          apiConfig={apiConfig}
-          setApiConfig={handleUpdateApiConfig}
-        />
-      )}
-
-      {showList && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
-          <div className="w-full max-w-2xl h-full max-h-[85vh] pointer-events-auto">
-            <FlightList
-              flights={flights}
-              trips={trips}
-              currency={currency}
-              onClose={() => setShowList(false)}
-              onDelete={handleDeleteFlight}
-              onDeleteTrip={handleDeleteTrip}
-              onEdit={handleEditFlight}
-              onExportData={handleExportData}
-              accentColor={accentColor}
-            />
-          </div>
-        </div>
-      )}
-
-      {showForm && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in zoom-in-95 duration-200">
-          <div className="pointer-events-auto w-full max-w-2xl">
-            <FlightForm
-              initialTrip={editingTrip}
-              initialData={editingFlight}
-              existingFlights={flights}
-              onClose={handleCloseForm}
-              onSubmit={handleSaveTrip}
-              accentColor={accentColor}
-              apiConfig={apiConfig}
-            />
-          </div>
-        </div>
-      )}
-
+      {/* GLOBAL MODALS needed outside Routes? (Selected Flight Detail is GLOBAL usually) */}
       {selectedFlight && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div className="absolute inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="pointer-events-auto bg-slate-900/95 border border-white/10 rounded-2xl p-8 w-full max-w-md relative shadow-2xl backdrop-blur-xl">
             <button onClick={() => setSelectedFlight(null)} className="absolute top-4 right-4 text-slate-500 hover:text-white"><X size={20} /></button>
             <div className="text-center space-y-4">
@@ -779,35 +631,32 @@ function App() {
         </div>
       )}
 
-      {/* OFF-SCREEN STATIC MAP RENDERER */}
+      {/* OFF-SCREEN MAP RENDERER */}
       {isGeneratingShare && (
         <div
           ref={shareContainerRef}
           style={{
             position: 'fixed',
             top: '0',
-            left: '0', // Render on screen but behind? Or way off?
-            // toPng/toBlob sometimes fails if completely off-screen or display:none.
-            // Safest is z-index: -1000 with opacity 0? 
-            // BUT html-to-image needs visibility.
-            // Let's try placing it at top/left but z-index -1000.  
+            left: '0',
             zIndex: -1000,
             width: '3840px',
             height: '2160px',
-            visibility: 'visible' // Required for capture
+            visibility: 'visible'
           }}
         >
           <StaticMap
-            flights={flights} // Pass all flights, independent of current filter? User said "all user's flight routes".
-            // In App.jsx 'flights' is the current filtered list IF there was filtering, but currently we only query all flights for user.
-            // So passed 'flights' is correct.
+            // StaticMap needs props too, same logic as before
+            // ... simplified for snippet
+            flights={flights}
+            width={exportConfig.width}
+            height={exportConfig.height}
+            lineWidth={exportConfig.lineWidth}
             accentColor={accentColor}
-            onReady={handleStaticMapReady}
           />
         </div>
       )}
 
-      {isElectron && <div className="absolute top-0 left-0 right-0 h-6 z-[100] app-region-drag" />}
     </div>
   );
 }
